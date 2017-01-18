@@ -9,3 +9,4 @@ SSA: Singular Spectrum Analysis
 
 2. Frequency Analysis
 ... forthcoming...
+.
