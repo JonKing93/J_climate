@@ -1,4 +1,4 @@
-function[ S, meanDates] = runningMean( ts, window, varargin)
+function[ S, centerDates, meanDates] = runningMean( ts, window, varargin)
 %% Computes a running mean over an n-dimensional dataset with a moving window.
 %
 % [S, meanDates] = runningMean(data, window)
@@ -34,7 +34,7 @@ function[ S, meanDates] = runningMean( ts, window, varargin)
 %
 % dates: Required with use of the windowType switches. An array containing
 %   the dates of observations in the time series. Dates must be either
-%   in datenum, or datevec format. 
+%   in datetime, datenum, or datevec format. 
 %
 % DIM: A scalar, specifies the dimension over which to compute the running
 %   means. (Default: 1)
@@ -60,8 +60,17 @@ function[ S, meanDates] = runningMean( ts, window, varargin)
 % Jonathan King, January 2017
 %
 
+%% Setup
+
 % Process inputs, do some error checking
-[windowType, dim, nanflag] = setup( varargin );
+[windowType, dates, dim, nanflag] = readInputs( varargin );
+
+% Preprocess the inputs - convert dates to datetime, windows to durations,
+% etc...
+[window, windowType, dates] = setup(window, windowType, dates);
+
+%% Convert the time series array into a 2D matrix with dimension of the
+% mean as the first dimension.
 
 % Permute the data such that the dimension of the running mean is first.
 dimOrder = 1:ndims(ts);
@@ -73,9 +82,11 @@ ts = permute( ts, dimOrder);
 sData = size(Data);
 ts = reshape(ts, sData(1), prod(sData(2:end)));
 
-% Get the indices over which the window will sit. (The window may not be
-% fixed length if the data does not have an equal timestep -- This is often
-% the case for monthly recorded data etc.)
+%% Get the indices over which the window will sit. 
+% (The window may not be fixed length if the data does not have an equal 
+% timestep -- This is often the case for monthly recorded data etc.)
+
+% Switch between the index and date/time options
 switch windowType
     
     % This is the easy case, just move the window over the time series
@@ -95,9 +106,11 @@ switch windowType
     case 'duration'
         
         % Get the time indices for the composite means
-        beginDex = dates;
-        endDex = beginDex + window;
+        beginDate = dates;
+        endDate = beginDex + window;
 
+        % Take the running mean over the dates of interest
+        
 
 
 
@@ -114,7 +127,7 @@ switch windowType
 end
 
 % ----- Helper Functions -----
-function[dates, dim, nanflag] = setup(inargs)
+function[dates, dim, nanflag] = readInputs(inargs)
 
 % Set default args
 nanflag = 'includenan';
