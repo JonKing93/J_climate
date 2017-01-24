@@ -61,7 +61,7 @@ function[ S, meanDates] = runningMean( ts, window, varargin)
 %
 
 % Process inputs, do some error checking
-[dim, nanflag] = setup( varargin );
+[windowType, dim, nanflag] = setup( varargin );
 
 % Permute the data such that the dimension of the running mean is first.
 dimOrder = 1:ndims(ts);
@@ -79,7 +79,7 @@ ts = reshape(ts, sData(1), prod(sData(2:end)));
 switch windowType
     
     % This is the easy case, just move the window over the time series
-    case index
+    case 'index'
         % Preallocate
         S = NaN( sData(1)-window+1, prod(sData(2:end)) );
         meanDates = NaN( sData(1)-window+1 );
@@ -90,9 +90,13 @@ switch windowType
             meanDates = mean( dates(j:j+window-1), nanflag );
         end
         
-    case duration
+    % The duration case applies to the years, months, days, and durations
+    % options.
+    case 'duration'
         
-        % Get a set of times with the added duration
+        % Get the time indices for the composite means
+        beginDex = dates;
+        endDex = beginDex + window;
 
 
 
