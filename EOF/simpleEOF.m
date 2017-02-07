@@ -1,4 +1,4 @@
-function[eigVals, eigVecs, Datax0, C] = simplePCA(Data, varargin)
+function[eigVals, eigVecs, Datax0, C] = simpleEOF(Data, varargin)
 %% Gets the PCs (EOFs) of a data matrix
 %
 % [eigVals, eigVecs, Datax0, C] = simplePCA(Data, analysisSpecs)      

@@ -1,5 +1,5 @@
-function[s] = PC_Analysis(Data, covcorr, MC, noiseType, confidence, varargin)
-%% Performs a full PCA (EOF) Analysis of a data set.
+function[s] = EOF_Analysis(Data, covcorr, MC, noiseType, confidence, varargin)
+%% Performs a full EOF / PC Analysis of a data set.
 % Finds the PC modes, explained variances, signals, and signals scaled to
 % the standardized dataset. Performs a ruleN significance test on the modes
 % and rotates the significant modes according to VARIMAX criterion.
@@ -104,7 +104,7 @@ end
 s = struct();
 
 % Run the PCA on the Data
-[s.eigVals, s.eigVecs, s.Datax0, s.C] = simplePCA(Data, covcorr, varargin{:});
+[s.eigVals, s.eigVecs, s.Datax0, s.C] = simpleEOF(Data, covcorr, varargin{:});
 
 % Get the signals
 s.signals = getSignals(s.Datax0, s.eigVecs);

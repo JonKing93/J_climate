@@ -46,7 +46,7 @@ Data_m0 = detrend(Data, 'constant');
 
 
 %% Run an svd of each series
-[eigvals, eigvecs] = quickSVD(C);
+[eigvals, eigvecs] = simpleEOF(C);
 
 
 end
