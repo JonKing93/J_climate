@@ -1,4 +1,4 @@
-function[corrmap, pmap, isSig] = fieldcorr(ts, field, p, MC, noiseType)
+function[corrmap, isSig, pmap] = fieldcorr(ts, field, p, MC, noiseType)
 %% Determines the correlation coefficients of a time series with a field, 
 % and performs a Monte Carlo significance test on the correlation.
 % 
@@ -20,6 +20,8 @@ function[corrmap, pmap, isSig] = fieldcorr(ts, field, p, MC, noiseType)
 %    'red': Red lag-1 autocorrelated noise with added Gaussian white noise
 %
 % MC: The Monte Carlo number
+%
+%
 %
 % ----- Outputs -----
 %
@@ -61,9 +63,6 @@ corrmap = reshape( corrmap, [1 sField(2:end)] );
 % P values of NaN are not actual tests, just missing data. Thus, remove
 % them from statistical considerations.
 ptests = pmap(~isnan(pmap));
-
-% Now reshape the pmap
-pmap = reshape( pmap, [1 sField(2:end)]);
 
 % Check that the finite number of tests do not cause the true significance
 % of the tests to fall below the desired significance level.
@@ -107,18 +106,27 @@ else
     
     % Compare this number of passed tests to the number passed by the time
     % series.
-    if nPass < mcNPass
-        % The number of passed tests does not exceed the number from the
-        % Monte Carlo simulations (to account for spatial relationship)
-        isSig = false;
-    else
-        isSig = true;
-    end
     
-end
+    if nPass < mcNPass
+        isSig
+    
+   
+    
+    
+    
+    
+    
+    
+    
+disp('blacnk');
+
+
+
+
 
 end
 
+end
 
 % ----- Helper Functions -----
 function[sField] = setup(ts, field)

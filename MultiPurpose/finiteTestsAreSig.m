@@ -1,7 +1,7 @@
 function[isSig, nNeeded] = finiteTestsAreSig( nTests, nPass, p )
 %% Returns a boolean to determine whether a finite number of passed 
 % significance tests are acutally significant at the given significance
-% levels.
+% level.
 %
 % [isSig] = finiteTestsAreSig( nTests, nPass, p )
 %
@@ -11,7 +11,7 @@ function[isSig, nNeeded] = finiteTestsAreSig( nTests, nPass, p )
 %
 % nPass: The number of significance tests that pass the significance level p
 %
-% p: The signigicance levels. (e.g. p = 0.05 is 95% significant)
+% p: The signigicance level. (e.g. p = 0.05 is 95% significant)
 %
 % ----- Outputs -----
 %

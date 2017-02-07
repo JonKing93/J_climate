@@ -1,8 +1,8 @@
-% EOF
+% PCA
 %
 % This folder contains functions involved in EOF Analysis.
 %
-% The function EOF_Analysis runs an analysis in full, but the functions may
+% The function PC_Analysis runs an analysis in full, but the functions may
 % also be used individually.
 %
 % Files
