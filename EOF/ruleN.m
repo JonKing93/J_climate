@@ -76,7 +76,7 @@ for k = 1:MC
     g = g * sqrt( diag( var( Data)));
     
     % Run an EOF analysis on the random matrix
-    [randEig, ~] = simplePCA(g, covcorr);
+    [randEig, ~] = simpleEOF(g, covcorr);
     
     % Normalize the eigenvalues
     randEig = randEig ./ sum(randEig);
