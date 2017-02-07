@@ -91,7 +91,7 @@ randEigSort = sort(randEigvals);
 
 % Calculate the confidence level threshold
 thresh = ceil( MC * confidence);
-realConf = MC / thresh;
+realConf = thresh / MC;
 
 % Find the significant values
 for k = 1:n

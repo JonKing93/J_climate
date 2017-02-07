@@ -1,25 +1,34 @@
-function[corrmap, pmap, isSig] = fieldcorr(ts, field, p, MC, noiseType)
+function[corrmap, pmap, isSig] = fieldcorr(ts, field, pvals, MC, noiseType, varargin)
 %% Determines the correlation coefficients of a time series with a field, 
 % and performs a Monte Carlo significance test on the correlation.
 % 
-% [corrmap, pmap , isSig] = fieldcorr( ts, field, p, MC, noiseType)
+% [corrmap, pmap , isSig] = fieldcorr(ts, field, p, MC, noiseType)
+%
+% [corrmap, pmap , isSig] = fieldcorr(ts, field, p, MC, noiseType, fieldDim)
 %
 % ----- Inputs -----
 % 
 % ts: a time series. This is a single vector.
 %
 % field: A field. The time series at individual points in the field should
-%   have the same length as ts. Field may be n-dimensional. In all cases,
-%   each set of observations is stored along one column.
+%   have the same length as ts. Field may be n-dimensional. By default,
+%   fieldcorr assumes that the time series is stored along the first
+%   dimension. (See the fieldDim argument if this is not the case)
 %
-% p: The desired confidence level. (e.g. p = 0.05 corresponds to the 95%
-% confidence level
+% pvals: A vector containing the p values of interest. (e.g. p = 0.05 
+%   corresponds to the 95% confidence level. Correlation coefficients are
+%   tested for significance at pval levels using Monte Carlo sampling.
 %
 % noisetype: The type of noise in the Monte Carlo time series.
 %    'white': White Gaussian noise
 %    'red': Red lag-1 autocorrelated noise with added Gaussian white noise
 %
 % MC: The Monte Carlo number
+%
+% *** Optional Inputs ***
+%
+% fieldDim: (Default = 1) A scalar, specifies the dimension of the field on
+%   which to perform the field correlation.
 %
 % ----- Outputs -----
 %
@@ -29,6 +38,9 @@ function[corrmap, pmap, isSig] = fieldcorr(ts, field, p, MC, noiseType)
 % pmap: Displays the p value of the correlation coefficient for each point
 % on the field.
 %
+% isSig: A boolean vector corresponding to each input p-value. A value of
+% true indicates a correlation is significant at the corresponding p-value.
+%
 % ----- Additional Reading -----
 %
 % Livezney and Chen (1983)
@@ -36,8 +48,9 @@ function[corrmap, pmap, isSig] = fieldcorr(ts, field, p, MC, noiseType)
 % -----
 % Jonathan King, 2017
 
-% Perform some initial error checking, get the number of dimensions.
-[sField] = setup(ts, field);
+
+%% Perform some initial error checking, get the number of dimensions.
+[sField] = setup(ts, field, pvals, varargin);
 
 
 %% Perform the actual correlation
@@ -54,11 +67,10 @@ end
 % Reshape the correlation map to the shape of the original field
 corrmap = reshape( corrmap, [1 sField(2:end)] );
 
-% (Before reshaping the pmap, perform a significance test...
 
-%% Perform significance tests
+%% Perform significance tests (before reshaping the pmap)
 
-% P values of NaN are not actual tests, just missing data. Thus, remove
+% p values of NaN are not actual tests, just missing data. Thus, remove
 % them from statistical considerations.
 ptests = pmap(~isnan(pmap));
 
@@ -68,9 +80,9 @@ pmap = reshape( pmap, [1 sField(2:end)]);
 % Check that the finite number of tests do not cause the true significance
 % of the tests to fall below the desired significance level.
 nTests = size(ptests, 2);
-nPass = sum( ptests<=p );
+nPass = sum( ptests<=pvals );
 
-isSig = finiteTestsAreSig( nTests, nPass, p);
+isSig = finiteTestsAreSig( nTests, nPass, pvals);
 
 if ~isSig
     % If the tests are not significant, stop
@@ -96,13 +108,13 @@ else
     
     % Get the number of points that pass the significance test for each
     % time series across the field.
-    mcPass = nansum( mcPvals < p, 2);
+    mcPass = nansum( mcPvals < pvals, 2);
 
     % Sort the number of passed tests
     mcPass = sort( mcPass);
     
     % Get the index of minimum of the p largest number of passed tests
-    sigDex = ceil(p*MC);
+    sigDex = ceil(pvals*MC);
     mcNPass = mcPass(sigDex);
     
     % Compare this number of passed tests to the number passed by the time
@@ -121,7 +133,24 @@ end
 
 
 % ----- Helper Functions -----
-function[sField] = setup(ts, field)
+
+% Error checking and sizes
+function[sField] = setup(ts, field, pvals, inArgs)
+
+% Ensure that varargin only contains one argument
+if length(inArgs) > 1
+    error('Too many input arguments');
+end
+
+% Set the field dimension
+fieldDim = 1;
+if ~isempty(inArgs)
+    if isscalar(inArgs{1})
+        fieldDim = inArgs{1};
+    else
+        error('fieldDim must be a scalar');
+    end
+end
 
 % Ensure ts and field have the correct dimensions
 if ~isvector(ts)
@@ -138,7 +167,14 @@ lTS = numel(ts);
 sField = size(field);
 
 if lTS ~= sField
-    error('ts and field must have the number of observations per point');
+    error('ts and field must have the number of observations');
+end
+
+% Ensure that pvals is a vector without NaN
+if ~isvector(pvals)
+    error('pvals must be a vector');
+elseif (pvals <= 0 || pvals >= 1)
+    error('P values must be on the interval (0,1)');
 end
 
 end

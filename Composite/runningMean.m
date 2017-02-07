@@ -25,16 +25,16 @@ function[ S, centerDates, meanDates] = runningMean( ts, window, varargin)
 %         requires input of the date input. The mean dates will be returned
 %         with function output.
 %   'index': Slides a window over the specified number of in the data
-%           This differs from the defualt settings because it requires a
+%           This differs from the default settings because it requires a
 %           set of dates.
-%   'years': Slides a window of the desired number of years.
+%   'years': Slides a window of the desired number of years. 
 %   'months': The window counts months
 %   'days': The window counts days.
 %   'duration': The window slides over a user-defined duration
 %
 % dates: Required with use of the windowType switches. An array containing
 %   the dates of observations in the time series. Dates must be either
-%   in datetime, datenum, or datevec format. 
+%   in datetime. 
 %
 % DIM: A scalar, specifies the dimension over which to compute the running
 %   means. (Default: 1)
@@ -47,12 +47,12 @@ function[ S, centerDates, meanDates] = runningMean( ts, window, varargin)
 % 
 % ----- Outputs -----
 % 
-% S: The new, running mean, time series
+% S: The running-mean time series
 %
 % meanDates: Requires input of the "dates" argument. A vector of containing
-%   the dates on which each running mean is centered. The first column
-%   contains the dates as datenum. The remaining columns contain the date
-%   in a datevec format.
+%   the dates on which each running mean observation is centered. The first
+%   column contains the dates as datenum. The remaining columns contain the
+%   date in a datetime format.
 %
 %
 % ----- Written By -----
@@ -65,9 +65,9 @@ function[ S, centerDates, meanDates] = runningMean( ts, window, varargin)
 % Process inputs, do some error checking
 [windowType, dates, dim, nanflag] = readInputs( varargin );
 
-% Preprocess the inputs - convert dates to datetime, windows to durations,
-% etc...
-[window, windowType, dates] = setup(window, windowType, dates);
+% Perform some error checking, convert window to a duration object
+[window, windowType, dates] = setup(data, window, windowType, dates);
+
 
 %% Convert the time series array into a 2D matrix with dimension of the
 % mean as the first dimension.
@@ -101,6 +101,7 @@ switch windowType
             meanDates = mean( dates(j:j+window-1), nanflag );
         end
         
+        
     % The duration case applies to the years, months, days, and durations
     % options.
     case 'duration'
@@ -118,7 +119,7 @@ switch windowType
 
 
 
-
+end
 
 
 
@@ -127,6 +128,14 @@ switch windowType
 end
 
 % ----- Helper Functions -----
+
+% Does some initial error checking, gets sizes
+function[window, windowType, dates] = setup(window, windowType, dates)
+end  
+
+
+% Parses the inputs. Does no actual error checking on the values of the
+% inputs, simply determines which input is which.
 function[dates, dim, nanflag] = readInputs(inargs)
 
 % Set default args
