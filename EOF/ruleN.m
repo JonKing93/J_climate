@@ -76,7 +76,7 @@ for k = 1:MC
     g = g * sqrt( diag( var( Data)));
     
     % Run an EOF analysis on the random matrix
-    [randEig, ~] = simplePCA(g, covcorr);
+    [randEig, ~] = simpleEOF(g, covcorr);
     
     % Normalize the eigenvalues
     randEig = randEig ./ sum(randEig);
@@ -91,7 +91,7 @@ randEigSort = sort(randEigvals);
 
 % Calculate the confidence level threshold
 thresh = ceil( MC * confidence);
-realConf = MC / thresh;
+realConf = thresh / MC;
 
 % Find the significant values
 for k = 1:n
