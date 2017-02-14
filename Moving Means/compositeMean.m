@@ -1,7 +1,6 @@
 function[compMean] = compositeMean(data, window, varargin)
-%% This function gets the composite (discrete average) value of an n-dimensional 
+%% This function gets the composite (discrete average) mean of an n-dimensional 
 % dataset along a dimension of choice.
-%
 %
 % [compMean] = compositeMean(data, window)
 %

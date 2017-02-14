@@ -1,18 +1,17 @@
 function[runMean] = runningMean(data, window, varargin)
-%% This function gets the composite (discrete average) value of an n-dimensional 
+%% This function gets the running mean of an n-dimensional 
 % dataset along a dimension of choice.
-%
 %
 % [runMean] = runningMean(data, window)
 %
-% [...] = compositeMean(..., dim)
+% [...] = runningMean(..., dim)
 %
-% [...] = compositeMean(..., nanflag)
-%
+% [...] = runningMean(..., nanflag)
 %
 % ----- Inputs -----
 %
-% data: An n-dimensional dataset
+% data: An n-dimensional dataset. Observations are assumed to be equally
+%   spaced.
 %
 % window: The number of indices over which to calculate each running mean.
 %
@@ -26,7 +25,7 @@ function[runMean] = runningMean(data, window, varargin)
 %
 % ----- Outputs -----
 %
-% runMean: The running mean series.
+% runMean: The running mean time series.
 
 % Initial error checking and sizing
 [dim, nanflag, ldata] = setup(data, window, varargin);
