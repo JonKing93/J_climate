@@ -3,10 +3,13 @@ function[runMean] = runningMean(data, window, varargin)
 % dataset along a dimension of choice.
 %
 % [runMean] = runningMean(data, window)
+% computes a running mean along an N-dimensional dataset
 %
 % [...] = runningMean(..., dim)
+% computes the running mean along a specified dimension
 %
 % [...] = runningMean(..., nanflag)
+% computes the running mean while treating NaNs in a user-specified manner
 %
 % ----- Inputs -----
 %
