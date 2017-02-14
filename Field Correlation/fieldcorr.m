@@ -149,7 +149,7 @@ if testSpatial
         if nPass(k) <= mcNPass
             % If the number of passed tests does not exceed the number from
             % the Monte Carlo simulation, then the null hypothesis is not
-            % disproved for the desired significance level.
+            % disproved for the desired significance level
             isSig(k) = false;
         end
     end
