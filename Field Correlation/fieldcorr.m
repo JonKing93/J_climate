@@ -28,7 +28,8 @@ function[corrmap, pmap, isSig] = fieldcorr(ts, field, pvals, varargin)
 %   corresponds to the 95% confidence level. Correlation coefficients are
 %   tested for significance at pval levels using Monte Carlo sampling.
 %
-% 'noSpatial': A flag to suppress significance testing of  
+% 'noSpatial': A flag to suppress significance testing with respect to
+%   spatial loss of degrees of freedom.
 %
 % noisetype: The type of noise in the Monte Carlo time series.
 %    'white': White Gaussian noise
@@ -64,7 +65,7 @@ function[corrmap, pmap, isSig] = fieldcorr(ts, field, pvals, varargin)
 
 [testSpatial, noiseType, MC, fieldDim] = parseInputs( varargin);
 
-[fieldDim, ts, testSpatial] = setup(ts, field, pvals, varargin);
+[ts] = setup(ts, field, pvals, fieldDim);
 
 
 %% Perform the actual correlation
@@ -82,7 +83,7 @@ corrmap = dim2TodimN( corrmap, [1 dSize(2:end)], dOrder);
 % them from statistical considerations.
 ptests = pmap(~isnan(pmap));
 
-% Now reshape the pmap
+% Now reshape the map of p-values
 pmap = dim2TodimN( pmap, [1 dSize(2:end)], dOrder);
 
 
@@ -90,7 +91,7 @@ pmap = dim2TodimN( pmap, [1 dSize(2:end)], dOrder);
 
 
 %% Test 1 - Do the finite number of tests cause true significance to fall 
-% below the desired significance level.
+% below the desired significance level?
 
 nTests = size(ptests, 2);
 npvals = length(pvals);
@@ -107,7 +108,7 @@ isSig = finiteTestsAreSig( nTests, nPass, pvals);
 
 % If none of the p values are significant, stop. There is no need to
 % account for spatial reduction of degrees of freedom because none of them
-% are significant
+% are significant anyways.
 if ~any( isSig )
     return;
 end
@@ -116,39 +117,43 @@ end
 %% Test 2 - Check if spatial correlation reduces significance below 
 % desired levels
 
-% Only run if desired...
+% Only run if desired
 if testSpatial
     
-    % Begin by creating a set of random time series.
+    % Begin by creating a set of random time series with the desired noise type.
     randTS = randNoiseSeries(ts, MC, noiseType);
 
     % Scale to the standard deviation of the time series
     randTS = randTS * std(ts);
 
-    % Get the correlation significace of each Monte Carlo time series with
+    % Get the correlation significance of each Monte Carlo time series with
     % the data from each point in the field
     [~, mcPvals] = corr(randTS, field);
 
-    % Get the number of points for each random time series that pass the
-    % significance test with the field.
-    mcPass = nansum( mcPvals < pvals, 2);
+    % For each significance level
+    mcPass = NaN( MC, npvals);
+    for k = 1:npvals
+        % For each random time series, get the number of points on the field
+        % that pass the significance level.
+        mcPass(:,k) = nansum( mcPvals < pvals(k), 2);
 
-    % Sort the number of passed tests
-    mcPass = sort( mcPass);
+        % Sort the number of passed tests in ascending order
+        mcPass(:,k) = sort( mcPass(:,k) );
 
-    % Get the index of the p largest number of passed tests
-    sigDex = ceil(pvals*MC);
-    mcNPass = mcPass(sigDex);
+        % Get the index of the p largest number of passed tests
+        sigDex = ceil( pvals(k)*MC );
+        mcNPass = mcPass(sigDex, k);
 
-    % Compare this number of passed tests to the number passed by the time
-    % series.
-    if nPass < mcNPass
-        % The number of passed tests does not exceed the number from the
-        % Monte Carlo simulations (to account for spatial relationship)
-        isSig = false;
-    else
-        isSig = true;
+        % Compare this number of passed tests to the number passed by the time
+        % series.
+        if nPass(k) <= mcNPass
+            % If the number of passed tests does not exceed the number from
+            % the Monte Carlo simulation, then the null hypothesis is not
+            % disproved for the desired significance level.
+            isSig(k) = false;
+        end
     end
+        
 end
 
 end
@@ -159,11 +164,14 @@ end
 % Reads the input arguments
 function[testSpatial, noiseType, MC, fieldDim] = parseInputs( inArgs )
 
+% Get the number of args
+nIn = length(inArgs);
+
 % Set default fieldDim
 fieldDim = 1;
 
 % See if the spatial testing is suppressed
-if isempty(inArgs)
+if nIn == 0
     error('Insufficient input arguments');
 end
 if strcmpi(inArgs{1}, 'noSpatial')
@@ -172,17 +180,20 @@ if strcmpi(inArgs{1}, 'noSpatial')
     MC = NaN;
     
     % Check for a fieldDim argument
-    if ~isempty(inArgs{2})
+    if nIn >= 2
         fieldDim = inArgs{2};
+        if nIn > 2
+            error('Too many input arguments');
+        end 
     end
     
-elseif length(inArgs) < 4
+elseif nIn < 4
     testSpatial = true;
     MC = inArgs{1};
     noiseType = inArgs{2};
     
     % Check for a fieldDim argument
-    if ~isempty(inArgs{3})
+    if nIn == 3
         fieldDim = inArgs{3};
     end
     
@@ -192,22 +203,18 @@ end
 end
 
 
-% Error checking and sizes
-function[sField] = setup(ts, field, pvals, inArgs)
+% Error checking and sizes, makes ts a column vector
+function[ts] = setup(ts, field, pvals, fieldDim)
 
-% Ensure that varargin only contains one argument
-if length(inArgs) > 1
-    error('Too many input arguments');
+% Ensure fieldDim is scalar
+if ~isscalar(fieldDim)
+    error('fieldDim must be a scalar');
 end
 
-% Set the field dimension
-fieldDim = 1;
-if ~isempty(inArgs)
-    if isscalar(inArgs{1})
-        fieldDim = inArgs{1};
-    else
-        error('fieldDim must be a scalar');
-    end
+% Ensure fieldDim does not exceed the dimensions in field
+sField = size(field);
+if fieldDim > length(sField)
+    error('fieldDim is greater than the number of dimensions in field');
 end
 
 % Ensure ts and field have the correct dimensions
@@ -215,23 +222,28 @@ if ~isvector(ts)
     error('ts must be a vector');
 end
 
-dField = ndims(field);
-if dField == 1
+% Ensure the field is at least a vector
+if isscalar(field)
     error('field cannot be a scalar');
 end
 
 % Ensure that ts and field have the same lengths
 lTS = numel(ts);
-sField = size(field);
 
-if lTS ~= sField
-    error('ts and field must have the number of observations');
+if lTS ~= sField(fieldDim)
+    error('ts must have the same number of observations as the dimension of interest in field');
 end
 
-% Ensure that pvals is a vector without NaN
+% Make ts a column vector
+if isrow(ts)
+    ts = ts';
+end
+
+% Ensure that pvals is a vector of values only between 0 and 1
 if ~isvector(pvals)
-    error('pvals must be a vector');
-elseif (pvals <= 0 || pvals >= 1)
+    error('pvals must be a vector');    
+% Ensure the values are between 0 and 1
+elseif any(pvals)<=0 || any(pvals)>=1
     error('P values must be on the interval (0,1)');
 end
 
