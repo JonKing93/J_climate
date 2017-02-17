@@ -1,8 +1,9 @@
 function[RCs, signals] = getRCs(eigvecs, traj, algorithm)
 %% Calculates the RCs for a SSA output
 % 
-% -------------------------------------------------------------------------
-% INPUTS:
+% [RCs, signals] = getRCs(eigvecs, traj, algorithm)
+%
+% ----- Inputs -----
 %
 % eigvecs: The eigenvectors for a set of trajectory matrices
 %
@@ -12,9 +13,8 @@ function[RCs, signals] = getRCs(eigvecs, traj, algorithm)
 % algorithm: The algorithm used to calculate the trajectory matrices
 %   'BK': Broomhead - King
 %   'VG': Vautard - Ghil
-
-% -------------------------------------------------------------------------
-% OUTPUTS:
+%
+% ----- Outputs -----
 % 
 % RCs: The reconstructed components for a set of trajectories and
 % eigenvectors. Each column of the output is a particular RC

@@ -1,10 +1,11 @@
-function[SSA_Data] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
+function[s] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
 %% Performs singular spectra analyses for a collection of time series.
 % Computes RCs (reconstructed components), and performs a Monte Carlo
 % significance test
 %
-% -------------------------------------------------------------------------
-% INPUTS:
+% [SSA] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
+%
+% ----- Inputs -----
 %
 % Data: a collection of time series stored as column vectors
 %
@@ -26,67 +27,72 @@ function[SSA_Data] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
 % pval: The desired confidence interval eigenvalues should test in the
 %   MC_SSA significance test
 %
-% -------------------------------------------------------------------------
-% OUTPUTS:
+% ----- Outputs -----
 %
-% [SSA_Data]: a structure with the following fields...THIS IS NOT
-% FINISHED!!!
+% s: a structure with the following fields
 %
-% eigvals: The eigenvalues of the time series. Each column corresponds to
-%   a particular time series.
+%   Data_m0: The time series normalized to a mean of 0
 %
-% eigvecs: The eigenvectors of each time series. Each dim1 x dim2 matrix
-%   represents the vectors for a particular time series. Each column of
-%   each matrix contains 1 eigenvector.
+%   eigvals: The singular values of the time series. Each column 
+%       corresponds to a particular time series.
 %
-% RC: The reconstructed components of each time series. Each dim1 x dim2
-%   matrix corresponds to a particular time series. Each column of each
-%   matrix contains 1 reconstructed component
+%   eigvecs: The eigenvectors of each time series. Each dim1 x dim2 matrix
+%       represents the vectors for a particular time series. Each column of
+%       each matrix contains 1 eigenvector.
 %
-% sigEigDex: A boolean vector containing true/false indices for the
-%   eigenvalues that passed the MC_SSA significance test.
+%   traj: The trajectory matrices constructed for the analyses. Each dim1 x
+%       dim2 matrix is the trajectory matrix for one time series.
 %
-% highSurrTail: A vector containing the surrogate eigenvalues on the upper
-%   tail of the MC_SSA
+%   RCs: The reconstructed components of each time series. Each dim1 x dim2
+%       matrix corresponds to a particular time series. Each column of each
+%       matrix contains 1 reconstructed component.
 %
-% lowSurrTail: A vector containing the surrogate eigenvalues on the low
-%   tail of the MC_SSA
+%   sigEigDex: A boolean vector containing true/false indices for the
+%       eigenvalues that passed the MC_SSA significance test.
+%
+%   upperTail: A vector containing the surrogate eigenvalues from the
+%       MC_SSA on the high end of the significance tail.
+%
+%   lowerTail: A vector containing the surrogate eigenvalues from the
+%       MC_SSA on the low end of the significance tail
+%       tail of the MC_SSA
+%
+%   maxFreq: The frequency with maximum power (using a periodogram) for
+%       each Data eigenvector.
+%
+%   maxPeriod: The period with maximum power (using a periodogram) for each
+%       Data eigenvector.
+%
+%   metadata: A cell with (in this order) the trajectory algorithm, Monte
+%       Carlo number, noise type, and p value for the analysis.
 
 
 %% Error check, get some startup values, set the vector of window sizes
 setup(Data, M);
+s = struct();
 
-
-%% Remove mean from data
-Data_m0 = detrend(Data, 'constant');
-
-
-%% Get trajectories and covariance
-[traj, C] = buildTrajandCov(Data_m0, M, algorithm);
-
-
-%% Run an svd of each series
-[eigvals, eigvecs] = quickSVD(C);
-
+%% Run a simple SSA
+[s.eigvals, s.eigvecs, s.Data_m0, s.traj] = simpleSSA(Data, M, algorithm);
 
 %% Get the RCs
-[RC, ~] = getRCs(eigvecs, traj, algorithm);
+[s.RCs, ~] = getRCs( s.eigvecs, s.traj, algorithm);
 
-
-%% Run an MC_EOF 
-surrEig = MC_SSA(Data_m0, eigvecs, MC, noise, M, algorithm);
-
+%% Run an MC_SSA
+s.surrEig = MC_SSA(s.Data_m0, s.eigvecs, MC, noise, M, algorithm);
 
 %% Do a significance test using the surrogate eigenvectors
-[sigEigDex, highSurrTail, lowSurrTail] = sigTestMCSSA(pval, eigvals, surrEig);
+[s.sigEigDex, s.upperTail, s.lowerTail] = sigTestMCSSA(pval, s.eigvals, s.surrEig);
 
+%% Get the periods/frequencies with maximum power from the data eigenvectors
+s.maxFreq = NaN(size(s.eigvals));
+s.maxPeriod = s.maxFreq;
+for k = 1:size(s.eigvals,2)
+    [s.maxFreq, s.maxPeriod] = maxFreqPeriod( s.eigvecs(:,:,k));
+end
 
-%% Get the periods and frequencies of the data and surrogate eigenvalue tails
+%% Assign the metadata
+s.metadata = {algorithm, MC, noise, pval};
 
-
-%% Assign data to a structure
-SSA_Data = struct('Eigenvalues',eigvals,'Eigenvectors',eigvecs,'RC',RC,...
-    'sigEigIndex',sigEigDex,'highSurrTail',highSurrTail,'lowSurrTail',lowSurrTail);
 end
 
 % ----- Helper functions -----

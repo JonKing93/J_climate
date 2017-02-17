@@ -62,17 +62,11 @@ surr(1,:,:) = 0;
 for j = 1:nseries
     
     % Build the surrogate series
-    for k = 2:npoints
-        surr(k,:,j) = ( ar1(j) .* surr(k-1,:,j) ) + randn(1,MC);
-    end
-    
-    % Remove mean and variance
-    surr(:,:,j) = zscore(surr(:,:,j));
+    surr(:,:,j) = randNoiseSeries(Data_m0(:,j), MC, noise);
     
     % Scale the surrogate series to the standard deviation of the data
     % series
     surr(:,:,j) = surr(:,:,j) * standev(j);
-    
     
     % For each surrogate series...
     for k = 1:MC

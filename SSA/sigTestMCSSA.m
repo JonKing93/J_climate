@@ -1,55 +1,56 @@
-function[sigEigDex, highSurrTail, lowSurrTail] = sigTestMCSSA( p, dataEigvals, surrEigvals)
+function[sigEigDex, upperTail, lowerTail] = sigTestMCSSA( p, dataEigvals, surrEigvals)
 %% Performs a significance test of data SSA eigenvalues against MC_SSA surrogates eigenvalues
 %
-% [sigEigDex, highSurrTail, lowSurrTail] = sigTestMCSSA( p, dataEigvals, surrEigvals)
+% [sigEigDex, upperTail, lowerTail] = sigTestMCSSA( p, dataEigvals, surrEigvals)
 %
 % ----- Inputs -----
 %
-% p: The confidence interval that the test should pass. This should be
-% a number between 0 and 1 (e.g. 0.95 is the 95% confidence interval)
+% p: The significance level that the test should pass. This should be a
+%   number between 0 and 1 (e.g. 0.05 is the 95% confidence interval)
 %
 % dataEigval: A set of time series eigenvalues. Each column contains the
-% eigenvalues of a particular time series
+%   eigenvalues of a particular time series
 %
 % surrEigvals: A set of surrogate eigenvalues generated using MC_SSA. dim1 is
-% the Monte Carlo number, dim2 is each windowed eigenvalue, dim3 is the
-% time series.
+%   the Monte Carlo number, dim2 is each windowed eigenvalue, dim3 is the
+%   time series.
 %
 % ----- Outputs -----
 %
 % sigEigDex: A boolean (true/false) vector with the indices of the data 
-% eigenvalues that pass the significance test. Each column corresponds to a
-% particular time series.
+%   eigenvalues that pass the significance test. Each column corresponds to a
+%   particular time series.
 %
-% highSurrTail: A matrix of the surrogate eigenvalues on the upper tail of
-% the significance test. Each column corresponds to a particular time
-% series.
+% upperTail: A matrix of the surrogate eigenvalues on the upper tail of
+%   the significance test. Each column corresponds to a particular time
+%   series.
 %
-% lowSurrTail: A matrix of the surrogate eigenvalues on the lower tail of
-% the significance test. Each column corresponds to a particular time
-% series.
+% lowerTail: A matrix of the surrogate eigenvalues on the lower tail of
+%   the significance test. Each column corresponds to a particular time
+%   series.
 %
 
 % Run an error check and get some initial sizes.
 [MC] = setup(p, dataEigvals, surrEigvals);
+p = 1-p;
 
 % Get the indices of the confidence interval
 maxRowDex = ceil( MC * (p + (1 - p)/2)  ) ;
 minRowDex = floor( MC * (1-p)/2 );
 
 % Get the vectors of the two tails of the confidence interval;
-highSurrTail = squeeze( surrEigvals( maxRowDex, :, :) );
-lowSurrTail = squeeze( surrEigvals( minRowDex, :, :) );
+upperTail = squeeze( surrEigvals( maxRowDex, :, :) );
+lowerTail = squeeze( surrEigvals( minRowDex, :, :) );
 
 % For a single time series, the squeeze operation will convert highSurrTail
 % and lowSurrTail to row vectors. This returns them to column vectors.
-if size(highSurrTail,1) == 1
-    highSurrTail = highSurrTail';
-    lowSurrTail = lowSurrTail';
+if size(upperTail,1) == 1
+    upperTail = upperTail';
+    lowerTail = lowerTail';
 end
 
 % Get the indices of the eigenvalues that passed the significance test
-sigEigDex = dataEigvals > highSurrTail;
+sigEigDex = dataEigvals > upperTail;
 
 end
 
@@ -59,7 +60,7 @@ function[MC] = setup(pval, dataEigval, surrEigval)
 
 % Ensure pval is between 0 and 1
 if pval >= 1 || pval <= 0
-    error('Confidence interval must be between 0 and 1');
+    error('p Value must be between 0 and 1');
 end
 
 % Ensure the inputs have the correct dimensionality

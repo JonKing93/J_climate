@@ -2,21 +2,20 @@ function[maxFreq, maxPeriod] = maxFreqPeriod(X)
 %% Obtains the frequency and associated period with maximum power from the periodogram
 % for each column of a set of column vectors
 %
-% -------------------------------------------------------------------------
-% INPUTS:
+% [maxFreq, maxPeriod] = maxFreqPeriod(X)
+%
+% ----- Inputs -----
 % 
 % X: a set of column vectors, must be 2D
 % 
-% -------------------------------------------------------------------------
-% OUTPUTS:
+% ----- Outputs -----
 %
 % maxFreq: The frequency with maximum power for each vector
 %
 % maxPeriod: The period with maximum power for each vector
 
 % Set the frequency function
-freqFunc = @pmtm;
-
+freqFunc = @periodogram;
 
 % Error check and get sizes
 [nvecs] = setup(X);
@@ -56,7 +55,6 @@ end
 
 
 % ----- Helper Functions -----
-
 function[nvecs] = setup(X)
 
 if ~ismatrix(X)
