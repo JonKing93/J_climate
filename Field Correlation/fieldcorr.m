@@ -3,14 +3,14 @@ function[corrmap, pmap, isSig] = fieldcorr(ts, field, pvals, varargin)
 % and tests for significance of the correlations.
 % 
 % [corrmap, pmap, isSig] = fieldcorr(ts, field, pvals, MC, noiseType)
-% computes field-timeseries correlation coefficients and tests whether 
+% computes timeseries-field correlation coefficients and tests whether 
 % correlation coefficients remain significant at a given level given a
 % finite number of tests AND spatial reduction of degrees of freedom in a
 % highly correlated field.
 %
 % [...] = fieldcorr(ts, field, pvals, 'noSpatial')
 % suppresses significance testing with respect to spatial reduction of
-% degrees of freedom
+% degrees of freedom.
 %
 % [...] = fieldcorr(..., fieldDim)
 % performs calculations along a specified dimension of the field.  
@@ -243,7 +243,7 @@ end
 if ~isvector(pvals)
     error('pvals must be a vector');    
 % Ensure the values are between 0 and 1
-elseif any(pvals)<=0 || any(pvals)>=1
+elseif any(pvals<=0) || any(pvals>=1)
     error('P values must be on the interval (0,1)');
 end
 
