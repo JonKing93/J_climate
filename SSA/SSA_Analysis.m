@@ -43,9 +43,15 @@ function[s] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
 %   traj: The trajectory matrices constructed for the analyses. Each dim1 x
 %       dim2 matrix is the trajectory matrix for one time series.
 %
+%   expvar: The explained variance of each eigenvalue / eigenmode
+%
 %   RCs: The reconstructed components of each time series. Each dim1 x dim2
 %       matrix corresponds to a particular time series. Each column of each
 %       matrix contains 1 reconstructed component.
+%
+%   surrEig: The surrogate eigenvalues from the Monte Carlo test. dim1 is
+%       the Monte Carlo number, dim2 is the eigenvalue, dim3 is the time
+%       series.
 %
 %   sigEigDex: A boolean vector containing true/false indices for the
 %       eigenvalues that passed the MC_SSA significance test.
