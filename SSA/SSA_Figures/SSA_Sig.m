@@ -16,9 +16,8 @@ function[s] = SSA_Sig( s, xType)
 % ----- Outputs -----
 %
 % s: The following fields will be added to the input structure
-%   
-%   
-% sigFreq: The frequencies of siginificant oscillations
+%   ei   
+%   sigFreq: The frequencies of siginificant oscillations
 %
 %   sigPeriod: The periods of significant oscillations
 %
