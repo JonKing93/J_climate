@@ -23,12 +23,9 @@ function[sM] = sampleMonthly(date, dayType, leapType)
 %
 % sM: The datetimes for monthly sampling points.
 
-% Get the earliest and latest dates
+% Get the earliest and latest year
 startYear = year( min(date));
-startMonth = month( min(date));
-
 endYear = year( max(date));
-endMonth = month( max(date));
 
 % Preallocate the year, month, and day values for the final datetime
 dYears = NaN( (endYear-startYear+1)*12,1); % preallocate
