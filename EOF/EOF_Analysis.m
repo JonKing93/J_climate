@@ -94,10 +94,6 @@ function[s] = EOF_Analysis(Data, covcorr, MC, noiseType, confidence, varargin)
 
 
 % Initial error checks
-if nargin == 1
-    extraCheck(Data)
-    return;
-end
 [notFullSvd] = setup(covcorr, varargin{:});
 
 % Declare the intial structure
@@ -180,11 +176,3 @@ end
 
 end
 
-function[] = extraCheck(egg)
-% ... Happy Easter!
-if strcmp(egg, 'Easter Egg') || strcmp(egg, 'easter egg') || strcmp(egg, 'Easter egg')
-    fprintf('After careful analysis, PCs are better than Macs...\r\n');
-else
-    error('Insufficient input arguments for full PC Analysis');
-end
-end

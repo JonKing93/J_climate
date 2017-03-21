@@ -65,8 +65,13 @@ function[lastSigNum, randEigSort, normEigvals, thresh, realConf] = ...
 % Get the data size
 [m, n] = size(Data);
 
-% Run rule N
+% Preallocate
 randEigvals = NaN(MC,n);
+if testConverge
+    iterConfEigs = NaN(MC, n);
+    iterTrueConf = NaN(MC, 1);
+
+
 for k = 1:MC
     
     % Create a random matrix
@@ -76,13 +81,26 @@ for k = 1:MC
     g = g * sqrt( diag( var( Data)));
     
     % Run an EOF analysis on the random matrix
-    [randEig, ~] = simpleEOF(g, covcorr);
+    [randEig, ~] = simpleEOF(g, covcorr, varargin{:});
     
     % Normalize the eigenvalues
     randEig = randEig ./ sum(randEig);
     
     % Store the random eigenvalues
     randEigvals(k,:) = randEig;
+    
+    % If testing Monte Carlo convergence...
+    if testConverge
+        % Sort the current set of random eigenvalues
+        randEigvals = sort(randEigvals);
+        
+        % Calculate the current confidence level threshold
+        thresh = ceil(k * confidence);
+        iterTrueConf(k) = thresh / k;
+        
+        % Get the set of values on the confidence interval
+        iterConfEigs(k,:) = randEigvals(thresh,:);
+    end
     
 end
 
@@ -104,6 +122,8 @@ end
 end
 
 %%%%% Helper Functions %%%%%
+
+
 function[g] = buildMatrix(noiseType, m, n, ar1)
 %% Builds the matrix g as appropriate for red or white noise
 switch noiseType
