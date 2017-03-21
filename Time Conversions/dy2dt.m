@@ -33,4 +33,8 @@ else
 end
 
 % Get the datetime array
-dt = datetime(year,1,1) + caldays(  round(day .* multiplier)  );
+day = day .* multiplier;
+fulldays = floor(day);
+partialdays = day - fulldays;
+
+dt = datetime(year,1,1) + caldays(fulldays) + days(partialdays);

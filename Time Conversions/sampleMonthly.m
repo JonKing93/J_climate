@@ -28,19 +28,19 @@ startYear = year( min(date));
 endYear = year( max(date));
 
 % Preallocate the year, month, and day values for the final datetime
-dYears = NaN( (endYear-startYear+1)*12,1); % preallocate
-dMonth = dYears;
-dDay = dYears;
+dYear = NaN( (endYear-startYear+1)*12,1); % preallocate
+dMonth = dYear;
+dDay = dYear;
 
 % Fill the values
 index = 1;
 for k = startYear:endYear
-    dYears(index:index+11) = k;
+    dYear(index:index+11) = k;
     dMonth(index:index+11) = (1:12)';
     
     % Choose which day to assign the date
     if strcmpi(dayType,'first')
-        dDay(iundex:index+11) = 1;
+        dDay(index:index+11) = 1;
     elseif strcmpi(dayType, 'mid')
         dDay(index:index+11) = [16 15 16 16 16 16 16 16 16 16 16 16]';
     elseif strcmpi(dayType, 'last')
