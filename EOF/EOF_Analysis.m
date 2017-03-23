@@ -1,106 +1,124 @@
-function[s] = EOF_Analysis(Data, covcorr, MC, noiseType, confidence, varargin)
-%% Performs a full EOF / PC Analysis of a data set.
-% Finds the PC modes, explained variances, signals, and signals scaled to
-% the standardized dataset. Performs a ruleN significance test on the modes
-% and rotates the significant modes according to VARIMAX criterion.
+function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
+%% Performs a full EOF Analysis of a data set.
+% 
+% [s] = EOF_Analysis(Data, matrix, MC, noiseType, pval)
+% Finds the EOF modes, explained variances, signals, and signals scaled to
+% the standardized dataset. Performs a Rule N significance test on the modes
+% and rotates the significant modes according to VARIMAX criterion. Returns
+% all calculated values in a structure, s.
 %
-% [s] = PCA_Analysis(Data, covcorr, MC, noiseType, confidence, analysisSpecs)
+% [s] = EOF_Analysis(..., 'testMC')
+% Also saves the eigenvalues at the required significance level for each
+% Monte Carlo iteration to test convergence.
+%
+% [s] = EOF_Analysis(..., 'showProgress')
+% Displays the current Monte Carlo iteration onscreen.
+%
+% [s] = EOF_Analysis(..., 'svds', 'econ')
+% Performs the economy sized svds decomposition rather than the default
+% svd.
+%
+% [s] = EOF_Analysis(..., 'svds', nEigs)
+% Uses the svds decomposition and determines the first nEigs eigenvalues.
+%
 %
 % ----- Inputs -----
 %
-% Data: A 2D data matrix. Each column corresponds to a particular time
-%   series. Data cannot contain NaN entries.
+% Data: A 2D data matrix. Each column corresponds to a particular data
+%       series. Data may only contain numeric entries.
 %
-% covcorr: The desired analysis matrix.
-%       'cov': Covariance matrix
-%       'corr': Correlation matrix
-%       'none': Perform svd directly on data matrix. (The analysis will 
+% matrix: The desired analysis matrix.
+%       'cov': Covariance matrix -- Minimizes variance along EOFs
+%       'corr': Correlation matrix -- Minimizes relative variance along
+%               EOFs. Often useful for data series with significantly
+%               differenct magnitudes.
+%       'none': Perform svd directly on data matrix. (This analysis will 
 %               detrend but not zscore the data)
 %  
-% MC: The number of Monte Carlo iterations used in the ruleN significance
+% MC: The number of Monte Carlo iterations used in the Rule N significance
 %       test
 %
 % noiseType: The noise used in the ruleN significance test
 %       'white': white Gaussian noise
 %       'red': lag-1 autocorrelated noise with added white noise
 %
-% confidence: The desired confidence interval. All modes passing the
-%       confidence interval will be added to the VARIMAX rotation.
-%
-% *** Optional Inputs ***
-%
-% analysisSpecs:
-%
-%   Decomposition type: svd or svds (these may have differing runtimes)
-%           'svd': (default) Uses the svd function for decomposition
-%           'svds': Uses the svds function for decomposition
-%             
-%   Decomposition size: The number of eigenvectors found (may affect runtime)
-%           'all': (default)Performs the full decomposition
-%           'econ': Performs the economy size decomposition
-%           neigs: An integer specifying the number of leading eigenvectors to find                
+% pval: The significance level that the significance test should pass.        
 %
 %
 % ----- Outputs -----
 %
 % s: A structure containing the following fields
 %
-%   Datax0: The standardized data matrix
+%   Datax0: The standardized or detrended data matrix
 %
-%   C: The analysis matrix. This will be either the original data matrix or
-%       its correlation or covariance matrix
+%   C: The analysis matrix. The covariance or correlation matrix of Datax0,
+%       or the original dataset.
 %
-%   eigVecs: The eigenvectors of the analysis matrix. These are the PCA
-%       modes. Each column contains one mode.
+%   modes: The EOF modes. These are the eigenvectors of the analysis 
+%       matrix. Each column is one mode.
 %
-%   eigVals: The eigenvalues of the analysis matrix. These are the loadings
-%       of the PCA modes.
+%   loadings: The loadings of each data series on each EOF modes. These are
+%       the eigenvalues of the analysis matrix. Each column corresponds to
+%       a different mode.
 %
-%   expVar: The explained variance of each PCA mode.
+%   normLoads: The normalized loadings.
 %
-%   signals: The signals arising from each PCA mode. Each column is a
-%       signal.
+%   expVar: The data variance explained by each mode.
 %
-%   scaledSignals: The signals scaled to the standardized data matrix.
+%   signals: The signal from each EOF mode. Signals are the imprint of each
+%       mode on the original data series. Each column is a signal.
 %
-%   numSig: The number of PCA modes that pass the ruleN significance test.
+%   scaSignals: The signals scaled to the standardized data matrix. Allows
+%       for quick comparison of signals with the original data series.
 %
-%   randEigvals: The set of random, normalized eigenvalues generated during
-%   the ruleN significance test. Each row contains the set of eigenvalues
-%   at a particular confidence interval.
+%   nSig: The number of modes that pass the Rule N significance test. 
 %
-%   normEigvals: The normalized data eigenvalues
+%   randLoads: The set of random, normalized loadings generated during
+%       the Rule N significance test. Each row contains the set of loadings
+%       at a particular confidence interval.
 %
-%   thresh: The index of the threshold row in randEigvals that data
-%       eigenvalues must exceed to pass the ruleN significance test.
+%   thresh: The index of the threshold row of random loadings in randLoads
+%       that the original data series loadings must exceed in order to pass
+%       the significance test.
 %
-%   trueConf: The true confidence level of the threshold row.
+%   trueSig: The true significance level of the threshold row.
 %
-%   scaledVecs: The significant eigenvectors scaled by the square root of
-%       the eigenvalues. These are the values used for the VARIMAX
-%       rotation.
+%   iterTrueSig: The true significance level of the threshold row after
+%       each iteration of the Monte Carlo simulations.
 %
-%   rotatedModes: The VARIMAX rotated PCA modes.
+%   iterSigLevel: The set of loadings for each iteration of the Monte Carlo
+%       simulations that the data series loadings must exceed in order to
+%       pass the significance test.
 %
-%   rotatedEigvals: The eigenvalues / loadings for the rotated modes.
+%   scaModes: The scaled modes used for VARIMAX rotation. Modes are scaled 
+%       by the square root of the loadings.
 %
-%   rotatedExpVar: The explained variance of the rotated eigenvalues.
+%   rotModes: The VARIMAX rotated modes.
 %
-%   rotationMatrix: The rotation matrix used to create the rotated modes.
+%   rotLoads: The loadings for the rotated modes.
 %
-%   rotatedSignals: The signals corresponding to the rotated modes
+%   rotExpVar: The variance explained by the rotated loadings.
 %
-%   scaledRotSignals: The scaled signals from the rotated modes.
+%   rotSignals: The signals corresponding to the rotated modes.
+%
+%   scaRotSignals: The scaled signal for each rotated mode.
+%
+%   rotMatrix: The rotation matrix used to rotate the selected.
+%
+%   metadata: Information concerning the settings used for the analysis.
+%
+% ----- References -----
+%
 
 
 % Initial error checks
-[notFullSvd] = setup(covcorr, varargin{:});
+[notFullSvd] = setup(matrix, varargin{:});
 
 % Declare the intial structure
 s = struct();
 
 % Run the PCA on the Data
-[s.eigVals, s.eigVecs, s.Datax0, s.C] = simpleEOF(Data, covcorr, varargin{:});
+[s.eigVals, s.eigVecs, s.Datax0, s.C] = simpleEOF(Data, matrix, varargin{:});
 
 % Get the signals
 s.signals = getSignals(s.Datax0, s.eigVecs);
@@ -117,7 +135,7 @@ end
 
 % Run the ruleN significance test
 [s.numSig, s.randEigvals, s.normEigvals, s.thresh, s.conf, s.iterTrueConf, s.iterConfEigs] = ...
-    ruleN(Data, s.eigVals, MC, noiseType, confidence, covcorr, varargin{:});
+    ruleN(Data, s.eigVals, MC, noiseType, pval, matrix, varargin{:});
 
 % Rotate the significant vectors (if more than 1 are significant)
 if s.numSig < 2   % Less than 2 are significant, set rotation output to NaN

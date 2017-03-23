@@ -5,18 +5,31 @@
 % The function EOF_Analysis runs an analysis in full, but the functions may
 % also be used individually.
 %
-% Files
-%   PC_Analysis  - Performs a full PCA (EOF) Analysis of a data set.
-%   simplePCA    - Gets the PCs (EOFs) of a data matrix
-%   explainedVar - Gets the percent explained variance of a set of eigenvalues / PC loadings
-%   getSignals   - Gets the signals from a standardized dataset and its eigenvectors.
+% Main Function:
+%   EOF_Analysis  - Performs a full EOF Analysis of a data set.
+%
+% Figure Functions:
+%   EOFloadings  - Plots the loadings of data series on significant modes.
+%   EOFsigplot   - A scree plot showing the modes that pass the significance test.
+%   plotRuleN    - Plots the convergence (or lack thereof) of the Rule N Monte Carlo tests.
+%
+% Operational Functions:
+%   simpleEOF    - Gets the EOFs of a data matrix
+%   explainedVar - Gets the percent explained variance of a set of eigenvalues / loadings
+%   getSignals   - Gets the signals from a standardized dataset and its eigenvectors / modes.
 %   scaleSignals - Scales signals to the standard deviation of the standardized data.
-%   ruleN        - Runs a Rule N significance test on a data matrix and its eigenvalues / PC loadings.
-%   scaleEigvecs - Scales the eigenvectors by the square root of the eigenvalues.
+%   ruleN        - Runs a Rule N significance test on a data matrix and its eigenvalues / loadings.
+%   scaleEigvecs - Scales the eigenvectors by the square root of the eigenvalues. Used for VARIMAX rotation.
 %   varimaxRotation - Performs a VARIMAX rotation on a set of scaled eigenvectors and eigenvalues.
 %
-% Written by: Jonathan King (jonking93@email.arizona.edu)
-% V1.0  (11-17-2016)
+% References:
+%   Deser, C., and M. L. Blackmon (1993), Surface climate variations over the
+%   North Atlantic Oceanduring winter:  1900-1989,Journal of Climate,6(9),
+%   1743-1753.
 %
-% This work based on the course Spatiotemporal Data Analysis, presented by
-% Kevin Anchukaitis.
+% Written by: 
+%   Jonathan King (jonking93@email.arizona.edu)
+%
+% Acknowledgements:
+%   This work based on assignments and material from the course "Spatiotemporal Data Analysis",
+%   presented by Kevin Anchukaitis.
