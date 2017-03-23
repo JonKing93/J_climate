@@ -1,7 +1,12 @@
-function[eigVals, eigVecs, Datax0, C] = simpleEOF(Data, varargin)
-%% Gets the PCs (EOFs) of a data matrix
+function[loadings, modes, Datax0, C] = simpleEOF(Data, varargin)
+%% Gets the EOF modes and loadings of a data matrix.
+% 
+% [loadings, modes, Datax0, C] = simpleEOF(Data)
 %
-% [eigVals, eigVecs, Datax0, C] = simplePCA(Data, analysisSpecs)      
+% [...] = simpleEOF(Data, 'svds', 'econ')
+% Uses an economy sized svds decomposition rather than the full svd.
+%
+% [...] = simpleEOF(Data, 'svds', '
 %
 % ----- Inputs -----
 % 
@@ -42,12 +47,7 @@ function[eigVals, eigVecs, Datax0, C] = simpleEOF(Data, varargin)
 %
 % C: The analysis matrix for the PCA. This may be the stadardized data
 %   matrix, its covariance matrix, or its correlation matrix, as appropriate.
-%
-% ----- Suggested Readings -----
-% 
-% IN PROGRESS...
-%
-%
+
 
 % Error check, determine analysis specifications
 [covcorr, svdFunc, decompArg] = setup(Data, varargin{:});
@@ -59,11 +59,11 @@ Datax0 = standardizeData(Data,covcorr);
 C = getAnalysisMatrix( Datax0, covcorr);
 
 % Run SVD(S)
-[eigVals, eigVecs] = quickSVD(C, svdFunc, decompArg);
+[loadings, modes] = quickSVD(C, svdFunc, decompArg);
 
 % Calculate eigenvalues if SVD is performed directly on data
 if strcmp(covcorr, 'none')
-    eigVals = (eigVals.^2) / (length(eigVals) - 1);
+    loadings = (loadings.^2) / (length(loadings) - 1);
 end
 
 end

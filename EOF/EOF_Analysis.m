@@ -106,18 +106,16 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %   rotMatrix: The rotation matrix used to rotate the selected.
 %
 %   metadata: Information concerning the settings used for the analysis.
-%
-% ----- References -----
-%
-
 
 % Initial error checks
+
+
 [notFullSvd] = setup(matrix, varargin{:});
 
 % Declare the intial structure
 s = struct();
 
-% Run the PCA on the Data
+% Run the initial EOF on the Data
 [s.eigVals, s.eigVecs, s.Datax0, s.C] = simpleEOF(Data, matrix, varargin{:});
 
 % Get the signals
