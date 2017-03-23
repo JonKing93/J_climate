@@ -1,4 +1,4 @@
-function[lastSigNum, randEigSort, normEigvals, thresh, realConf] = ...
+function[lastSigNum, randEigSort, normEigvals, thresh, realConf, iterTrueConf, iterConfEigs] = ...
     ruleN(Data, eigVals, MC, noiseType, confidence, covcorr, varargin)
 %% Runs a Rule N significance test on a data matrix and its eigenvalues / PC loadings.
 %
@@ -67,12 +67,18 @@ function[lastSigNum, randEigSort, normEigvals, thresh, realConf] = ...
 
 % Preallocate
 randEigvals = NaN(MC,n);
+testConverge = true; %%%%%%%%AHHHHHHHHHHHHHHH FIX THIS!!!!!!!!!!!!!!!!!!
 if testConverge
     iterConfEigs = NaN(MC, n);
     iterTrueConf = NaN(MC, 1);
+else
+    iterConfEigs = [];
+    iterTrueConf = [];
+end
 
-
+% Run Rule N...
 for k = 1:MC
+    k
     
     % Create a random matrix
     g = buildMatrix(noiseType,m,n,ar1);
@@ -122,8 +128,6 @@ end
 end
 
 %%%%% Helper Functions %%%%%
-
-
 function[g] = buildMatrix(noiseType, m, n, ar1)
 %% Builds the matrix g as appropriate for red or white noise
 switch noiseType

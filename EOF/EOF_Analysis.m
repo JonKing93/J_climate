@@ -116,7 +116,7 @@ else
 end    
 
 % Run the ruleN significance test
-[s.numSig, s.randEigvals, s.normEigvals, s.thresh, s.conf] = ...
+[s.numSig, s.randEigvals, s.normEigvals, s.thresh, s.conf, s.iterTrueConf, s.iterConfEigs] = ...
     ruleN(Data, s.eigVals, MC, noiseType, confidence, covcorr, varargin{:});
 
 % Rotate the significant vectors (if more than 1 are significant)
