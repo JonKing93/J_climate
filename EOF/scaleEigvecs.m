@@ -1,8 +1,9 @@
-function[scaledVecs] = scaleEigvecs(eigVecs, eigVals)
+function[scaledVecs] = scaleModes(modes, eigVals)
 %% Scales the eigenvectors by the square root of the eigenvalues.
 % A necessary step before EOF rotation.
 %
 % [scaledVecs] = scaleEigvecs(eigVecs, eigVals)
+%
 %
 % ----- Inputs -----
 %
@@ -18,11 +19,11 @@ function[scaledVecs] = scaleEigvecs(eigVecs, eigVals)
 %
 % scaledVecs: The scaled eigenvectors.
 
-[npoints,nVecs,nSets] = setup(eigVecs, eigVals);
+[npoints,nVecs,nSets] = setup(modes, eigVals);
 
 scaledVecs = NaN(npoints, nVecs, nSets);
 for k = 1:nSets
-    scaledVecs(:,:,k) = eigVecs(:,:,k) .* ...
+    scaledVecs(:,:,k) = modes(:,:,k) .* ...
         repmat( sqrt(eigVals(:,k))', [npoints, 1] );
 end
 

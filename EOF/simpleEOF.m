@@ -1,7 +1,7 @@
-function[modes, eigVals, Datax0, C] = simpleEOF(Data, matrix, varargin)
+function[eigVals, modes, Datax0, C] = simpleEOF(Data, matrix, varargin)
 %% Gets the EOF modes and loadings of a data matrix.
 % 
-% [loadings, modes, Datax0, C] = simpleEOF(Data, matrix)
+% [eigVals, modes, Datax0, C] = simpleEOF(Data, matrix)
 %
 % [...] = simpleEOF(Data, matrix, 'svds', 'econ')
 % Uses an economy sized svds decomposition rather than the full svd.
@@ -40,7 +40,7 @@ function[modes, eigVals, Datax0, C] = simpleEOF(Data, matrix, varargin)
 %
 % Datax0: The standardized or detrended data matrix
 %
-% C: The analysis matrix for the PCA. This may be the stadardized data
+% C: The analysis matrix for the PCA. This may be the standardized data
 %       matrix, its covariance matrix, or its correlation matrix, as appropriate.
 
 % Get the inputs

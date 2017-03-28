@@ -63,16 +63,18 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %       magnitude, the more data variance explained by the mode.
 %
 %   modes: The EOF modes. These are the eigenvectors of the analysis 
-%       matrix. Each column is one mode.
+%       matrix, also known as loadings. Each column is one mode.
 %
-%   expVar: The data variance explained by each mode. These are the
-%       normalized eigenvalues.
+%   expVar: The data variance explained by each mode.
 %
 %   signals: The signal for each EOF mode. Signals are the imprint of each
-%       mode on the original data series. Each column is one signal.
+%       mode on the original data series, also known as scores or EOF 
+%       time series. Each column is one signal.
 %
 %   scaSignals: The signals scaled to the standardized data matrix. Allows
 %       for quick comparison of signals with the original data series.
+%
+%   normVals: The normalized data eigenvalues.
 %
 %   nSig: The number of modes that pass the Rule N significance test. 
 %
@@ -109,63 +111,64 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %   metadata: Information concerning the settings used for the analysis.
 %       Contains: matrix, MC, noisetype, pval, and any additional flags.
 
-% Initial error checks
-
+% Parse Inputs, all error checking will occur in called functions
 [showProgress, svdArgs, blockMC, blockIter] = parseInputs(varargin(:));
 
-
-
-
-% [notFullSvd] = setup(matrix, varargin{:});
+% Do some setup
+[incompleteSVD] = setup(matrix, svdArgs);
 
 % Declare the intial structure
 s = struct();
 
 % Run the initial EOF on the Data
-[s.modes, s.loadings, s.Datax0, s.C] = simpleEOF(Data, matrix, svdArgs{:});
+[s.eigVals, s.modes, s.Datax0, s.C] = simpleEOF(Data, matrix, svdArgs{:});
 
 % Get the signals
-s.signals = getSignals(s.Datax0, s.eigVecs);
+s.signals = getSignals(s.Datax0, s.modes);
 
 % Get the scaled signals
 s.scaledSignals = scaleSignals(s.signals, s.eigVals);
 
 % Get the explained variance
-if notFullSvd   % Use the data variance if svd was incomplete
+if incompleteSVD   % Use the data variance if svd was incomplete
     s.expVar = explainedVar(s.eigVals, s.Datax0);
 else
     s.expVar = explainedVar(s.eigVals);
 end    
 
-% Run the ruleN significance test
-[s.numSig, s.randEigvals, s.normEigvals, s.thresh, s.conf, s.iterTrueConf, s.iterConfEigs] = ...
-    ruleN(Data, s.eigVals, MC, noiseType, pval, matrix, varargin{:});
+% Rule N, and rotation require significance testing to continue
+if ~blockMC
+    
+    if ~blockIter
+        % Run the ruleN significance test and test Monte Carlo convergence
+        [s.nSig, s.randEigvals, s.normVals, s.thresh, s.trueSig, s.iterSigLevel, s.iterTrueSig] = ...
+            ruleN(Data, s.eigVals, MC, noiseType, pval, matrix, svdArgs);
+    else
+        % Do not include the convergence test
+        [s.nSig, s.randEigvals, s.normVals, s.thresh, s.trueSig] = ...
+            ruleN(Data, s.eigVals, MC, noiseType, pval, matrix, svdArgs);
+    end
+    
+    % Rotate the significant vectors if more than 1 are significant)
+    if s.numSig < 2   % Less than 2 are significant, cannot rotate
+         % Do nothing
+    
+    else % There are significant modes, rotate them...
 
-% Rotate the significant vectors (if more than 1 are significant)
-if s.numSig < 2   % Less than 2 are significant, set rotation output to NaN
-    s.scaledVecs = NaN;
-    s.rotatedModes = NaN;
-    s.rotationMatrix = NaN;
-    s.rotatedEigvals = NaN;
-    s.rotatedSignals = NaN;
-    s.scaledRotSignals = NaN;
+        % Scale the eigenvectors
+        s.scaModes = scaleModes( s.modes(:,1:s.nSig), s.eigVals(1:s.nSig));
+
+        % Rotate the eigenvectors
+        [s.rotModes, s.rotEigvals, s.rotExpVar, s.rotMatrix] = ...
+            varimaxRotation( s.scaModes, s.modes(1:s.nSig));
+
+        % Get the rotated signals
+        s.rotSignals = getSignals(s.Datax0, s.rotModes);
+
+        % Get the scaled rotated signals
+        s.scaRotSignals = scaleSignals( s.rotSignals, s.rotEigvals);
     
-else % There are significant modes, rotate them...
-    
-    % Scale the eigenvectors
-    s.scaledVecs = scaleEigvecs( s.eigVecs(:,1:s.numSig), s.eigVals(1:s.numSig));
-    
-    % Rotate the eigenvectors
-    [s.rotatedModes, s.rotatedEigvals, s.rotatedExpVar, s.rotationMatrix] = ...
-        varimaxRotation( s.scaledVecs, s.eigVals(1:s.numSig));
-    
-    % Get the rotated signals
-    s.rotatedSignals = getSignals(s.Datax0, s.rotatedModes);
-    
-    % Get the scaled rotated signals
-    s.scaledRotSignals = scaleSignals( s.rotatedSignals, s.rotatedEigvals);
-    
-end
+    end
 
 end
 
@@ -208,23 +211,19 @@ if ~isempty(inArgs)
 end       
 end             
             
+function[incompleteSvd] = setup(matrix, svdArgs)
 
+incompleteSvd = false;
 
-
-
-
-function[notFullSvd] = setup(covcorr, varargin)
-
-notFullSvd = false;
-
+if length(svdArgs)
 % Determine if explainedVar will need extra inputs
 for ks = 1:length(varargin)
     spec = varargin{ks};
     
     if isscalar(spec)  % Only the first several eigs are stored
-        notFullSvd = true; 
+        incompleteSvd = true; 
     elseif strcmp(spec, 'econ') % Economy size SVD is performed
-        notFullSvd = true;
+        incompleteSvd = true;
     end
     
     if notFullSVD && strcmp(covcorr, 'none')
@@ -234,7 +233,7 @@ end
     
 % SVDS is always economy sized
 if strcmp(covcorr, 'svds')
-    notFullSvd = true;
+    incompleteSvd = true;
 end
     
 
