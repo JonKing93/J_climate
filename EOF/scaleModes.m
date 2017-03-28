@@ -1,4 +1,4 @@
-function[scaledVecs] = scaleModes(modes, eigVals)
+function[scaledModes] = scaleModes(modes, eigVals)
 %% Scales the EOF modes by the square root of the eigenvalues.
 % A necessary step before EOF rotation.
 %
@@ -16,22 +16,20 @@ function[scaledVecs] = scaleModes(modes, eigVals)
 %
 % scaledModes: The scaled eigenvectors.
 
-[npoints,nVecs,nSets] = setup(modes, eigVals);
+% Error check and make eigVals a row vector
+[eigVals] = setup(modes, eigVals);
 
-scaledVecs = NaN(npoints, nVecs, nSets);
-for k = 1:nSets
-    scaledVecs(:,:,k) = modes(:,:,k) .* ...
-        repmat( sqrt(eigVals(:,k))', [npoints, 1] );
-end
+% Scale the modes.
+scaledModes = modes .* sqrt(eigVals);
 
 end
 
 %%%%% Helper Functions %%%%%
-function[npoints, nVecs, nSets] = setup(modes, eigVals)
+function[eigVals] = setup(modes, eigVals)
 
 % Check eigVecs is a matrix
 if ~ismatrix(modes)
-    error('eigVecs must be a matrix');
+    error('modes must be a matrix');
 end
 
 % Check eigVals is a vector
@@ -40,19 +38,24 @@ if ~isvector(eigVals)
 end
 
 % Ensure there are no NaNs
-if NaNcheck(eigVecs)
-    error('eigVecs cannot contain NaN');
+if hasNaN(modes)
+    error('modes cannot contain NaN');
 end
-if NaNcheck(eigVals)
+if hasNaN(eigVals)
     error('eigVals cannot contain NaN');
 end
 
 % Check that the dimensions of the eigvecs and eigvals align
-[npoints, nVecs, nSets] = size(eigVecs);
-[nEigvals, nValsets] = size(eigVals);
+[~, nModes] = size(modes);
+[nEigvals] = size(eigVals);
 
-if nSets ~= nValsets || nEigvals ~= nVecs
-    error('The size of eigVals and eigVecs do not correctly align');
+if nEigvals ~= nModes
+    error('The number of eigenvalues and modes do not align');
+end
+
+% Make eigVals a row vector
+if ~isrow(eigVals)
+    eigVals = eigVals';
 end
 end
     

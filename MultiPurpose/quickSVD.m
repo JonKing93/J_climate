@@ -82,7 +82,7 @@ function[] = errCheck(C)
 if ~ismatrix(C)
     error('C must be a matrix');
 % No NaN
-elseif any(isnan(C))
+elseif hasNaN(C)
     error('C may not contain NaN');
 end
 end

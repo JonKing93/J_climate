@@ -99,7 +99,7 @@ if ~ismatrix(Data)
 end
 
 % Ensure data does not contain NaNs
-if NaNcheck(Data)
+if hasNaN(Data)
     error('Data cannot contain NaNs');
 end
 
