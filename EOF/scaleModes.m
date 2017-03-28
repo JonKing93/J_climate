@@ -1,23 +1,20 @@
 function[scaledVecs] = scaleModes(modes, eigVals)
-%% Scales the eigenvectors by the square root of the eigenvalues.
+%% Scales the EOF modes by the square root of the eigenvalues.
 % A necessary step before EOF rotation.
 %
-% [scaledVecs] = scaleEigvecs(eigVecs, eigVals)
+% [scaledModes] = scaleModes(modes, eigVals)
 %
 %
 % ----- Inputs -----
 %
-% eigVecs: A set of eigenvectors for Varimax rotation. Each column is an
-%   eigenvector. If eigVecs is 3D, each dim1 x dim2 matrix is a set of
-%   eigenvectors.
+% modes: A set of EOF modes for Varimax rotation. Each column is a mode
 %
-% eigVals: The eigenvalues associated with each eigenvector. Each column of
-%   eigVals corresponds to a set of eigenvectors.
+% eigVals: A vector containing the eigenvalues associated with each mode.
 %
 %
 % ----- Outputs -----
 %
-% scaledVecs: The scaled eigenvectors.
+% scaledModes: The scaled eigenvectors.
 
 [npoints,nVecs,nSets] = setup(modes, eigVals);
 
@@ -30,15 +27,16 @@ end
 end
 
 %%%%% Helper Functions %%%%%
-function[npoints, nVecs, nSets] = setup(eigVecs, eigVals)
+function[npoints, nVecs, nSets] = setup(modes, eigVals)
 
-% Check eigVecs is 3D
-if ndims(eigVecs)>3
-    error('eigVecs must be 3D');
+% Check eigVecs is a matrix
+if ~ismatrix(modes)
+    error('eigVecs must be a matrix');
 end
-% Check eigVals is a matrix
-if ~ismatrix(eigVals)
-    error('eigVals must be a matrix');
+
+% Check eigVals is a vector
+if ~isvector(eigVals)
+    error('eigVals must be a vector');
 end
 
 % Ensure there are no NaNs
