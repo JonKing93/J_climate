@@ -4,40 +4,30 @@ function[eigvals, eigvecs] = quickSVD(C, varargin)
 % [eigvals, eigvecs] = quickSVD(C)
 %   performs a full SVD on a matrix or set of matrices.
 %
-% [eigvals, eigvecs] = quickSVD(C, svdType, svdSize)
-% allows the user to choose between svd and svds decompositions, and select
-% the size of each type of decomposition.
+% [...] = quickSVD(C, 'svds', 'econ')
+% Uses an economy sized svds decomposition rather than the full svd.
+%
+% [...] = quickSVD(C, 'svds', nEigs)
+% Uses the svds decomposition and determines the first nEigs eigenvalues.
+%
+% [...] = quickSVD(C, 'svd')
+% Performs the normal svd.
 %
 % ----- Inputs -----
 %
-% C: A matrix or 3D stack of matrices. If C is a 3D stack of matrices, an
-%       svd will be performed on each dim1 x dim2 matrix.
+% C: A matrix. May not contain NaN.
 %
-% *** Optional Inputs ***
-%
-% svdType: A flag for the type of decomposition
-%       'svd': (Default) Uses the svd decomposition
-%       'svds': Uses the function for the svds decomposition.
-%
-% svdSize: Specify the number of singular values found.
-%       For svd: 'all': (Default) Performs the full decomposition
-%                'econ': Performs the economy sized decomposition
-%                nEigs: an integer specifying the number of singular values
-%                       to find (not recommended for svd)
-%
-%       For svds: 'econ': (Default) Performs the economy sized decomposition
-%                 nEigs: An integer specifying the number of singular values to find
 %
 % ----- Outputs -----
 %
-% eigvals: A 2D matrix of eigenvalues. Each column corresponds to the
-%       values for a particular dim1 x dim2 matrix in C.
+% eigvals: A vector containing the eigenvalues of C.
 %
-% eigvecs: A 3D matrix of eigenvectors. Each dim1 x dim2 matrix corresponds
-%       to a particular matrix in C.
-%
-% ---
-% Jonathan King, 2017
+% eigvecs: A matrix containing the eigenvectors of C. Each column is one
+%       eigenvector.
+
+% Parse Inputs
+[svdFunc, svdsArg] = parseInputs( varargin(:));
+
 
 % Error check, parse inputs, get number of matrices
 [numMat, decompType, decompArg] = setup(C, varargin{:});
@@ -78,6 +68,34 @@ end
     
     
 %%%%% Helper Functions %%%%%
+function[svdFunc, svdsArg] = parseInputs( varargin)
+inArgs = varargin;
+
+% Set the defaults
+svdFunc = 'svd';
+svdsArg = NaN;
+
+if ~isempty(inArgs)
+   for k = 1:length(inArgs)
+       arg = inArgs{k};
+       
+       if strcmpi(arg,'svd')
+           % Do nothing
+       elseif strcmpi(arg, 'svds')
+            if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
+                svdFunc = 'svds';
+                svdsArg = inArgs{k+1};
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        else
+            error('Unrecognized Input');
+       end
+   end
+end
+end
+          
+
 
 function[nMat, svdType, nEigs] = setup(C,varargin)
 %% Error checking and determination of input specifications

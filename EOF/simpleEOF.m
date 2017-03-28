@@ -21,8 +21,8 @@ function[modes, loadings, Datax0, C] = simpleEOF(Data, matrix, varargin)
 % matrix: The desired analysis matrix.
 %       'cov': Covariance matrix -- Minimizes variance along EOFs
 %       'corr': Correlation matrix -- Minimizes relative variance along
-%               EOFs. Often useful for data series with significantly
-%               differenct magnitudes.
+%               EOFs. Useful for data series with significantly
+%               different magnitudes.
 %       'none': Perform svd directly on data matrix. (This analysis will 
 %               detrend but not zscore the data)
 %
@@ -50,13 +50,13 @@ function[modes, loadings, Datax0, C] = simpleEOF(Data, matrix, varargin)
 [covcorr, svdFunc, decompArg] = setup(Data, varargin{:});
 
 % Standardize Data
-Datax0 = standardizeData(Data, matrix);
+Datax0 = standardizeData(Data, matrix); % Helper function
 
-% Get covariance OR correlation matrix OR leave data as is
+% Get the covariance / correlation / detrended data matrix.
 C = getAnalysisMatrix( Datax0, matrix);
 
 % Run SVD(S)
-[loadings, modes] = quickSVD(C, svdFunc, decompArg);
+[loadings, modes] = quickSVD(C, svdArgs);
 
 % Calculate eigenvalues if SVD is performed directly on data
 if strcmp(covcorr, 'none')
@@ -67,7 +67,8 @@ end
 
 
 %%%%% Helper Functions %%%%%
-function[svdArgs] = parseInputs(inArgs)
+function[svdArgs] = parseInputs(varargin)
+inArgs = varargin;
 
 % Set the default
 svdArgs = {'svd'};
@@ -159,12 +160,11 @@ else
 end
 end
 
-function[C] = getAnalysisMatrix( Datax0, covcorr)
-if strcmp(covcorr, 'cov')
+function[C] = getAnalysisMatrix( Datax0, matrix)
+if strcmpi(matrix, 'cov') || strcmpi(matrix, 'corr')
+    % Note that the corr matrix has been zscored, so taking the covariance
+    % is equivalent to the correlation matrix.
     C = cov(Datax0);
-    
-elseif  strcmp(covcorr,'corr')
-    C = corr(Datax0);
 else
     C = Datax0;
 end

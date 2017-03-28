@@ -170,7 +170,8 @@ end
 end
 
 %%%%% Helper Functions %%%%%
-function[showProgress, svdArgs, blockMC, blockIter] = parseInputs(inArgs)
+function[showProgress, svdArgs, blockMC, blockIter] = parseInputs(varargin)
+inArgs = varargin;
 
 % Set defaults
 showProgress = false;
