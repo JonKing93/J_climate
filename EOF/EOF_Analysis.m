@@ -14,8 +14,8 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 % Performs the economy sized svds decomposition rather than the default
 % svd.
 %
-% [s] = EOF_Analysis(..., 'svds', nEigs)
-% Uses the svds decomposition and determines the first nEigs eigenvalues.
+% [s] = EOF_Analysis(..., 'svds', nModes)
+% Uses the svds decomposition and determines the first nModes modes.
 %
 % [s] = EOF_Analysis(..., 'noSigTest')
 % A flag to block the Rule N significance testing. The returned structure
@@ -23,7 +23,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %
 % [s] = EOF_Analysis(..., 'noConvergeTest')
 % A flag to block the test for Monte Carlo convergence. The returned
-% structure will contain neither iterSigLevel nor iterTrueSig.
+% structure will contain neither the iterSigLevel nor iterTrueSig fields.
 %
 %
 % ----- Inputs -----
@@ -35,7 +35,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %       'cov': Covariance matrix -- Minimizes variance along EOFs
 %       'corr': Correlation matrix -- Minimizes relative variance along
 %               EOFs. Often useful for data series with significantly
-%               differenct magnitudes.
+%               different magnitudes.
 %       'none': Perform svd directly on data matrix. (This analysis will 
 %               detrend but not zscore the data)
 %  
@@ -58,46 +58,45 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %   C: The analysis matrix. The covariance or correlation matrix of Datax0,
 %       or the original dataset.
 %
+%   eigVals: A vector with the eigenvalues of the analysis matrix. Each 
+%       eigenvalue corresponds to an EOF mode. The larger the eigenvalue
+%       magnitude, the more data variance explained by the mode.
+%
 %   modes: The EOF modes. These are the eigenvectors of the analysis 
 %       matrix. Each column is one mode.
 %
-%   loadings: The loadings of each data series on each EOF modes. These are
-%       the eigenvalues of the analysis matrix. Each column corresponds to
-%       a different mode.
+%   expVar: The data variance explained by each mode. These are the
+%       normalized eigenvalues.
 %
-%   normLoads: The normalized loadings.
-%
-%   expVar: The data variance explained by each mode.
-%
-%   signals: The signal from each EOF mode. Signals are the imprint of each
-%       mode on the original data series. Each column is a signal.
+%   signals: The signal for each EOF mode. Signals are the imprint of each
+%       mode on the original data series. Each column is one signal.
 %
 %   scaSignals: The signals scaled to the standardized data matrix. Allows
 %       for quick comparison of signals with the original data series.
 %
 %   nSig: The number of modes that pass the Rule N significance test. 
 %
-%   randLoads: The set of random, normalized loadings generated during
-%       the Rule N significance test. Each row contains the set of loadings
+%   randEigvals: The set of random, normalized eigenvalues generated during
+%       the Rule N significance test. Each row contains the eigenvalues
 %       at a particular confidence interval.
 %
-%   thresh: The index of the threshold row in randLoads that the data 
-%       loadings must exceed in order to pass the significance test.
+%   thresh: The index of the threshold row in randEigvals that the data 
+%       eigenvalues must exceed in order to pass the significance test.
 %
 %   trueSig: The true significance level of the threshold row.
 %
 %   iterTrueSig: The true significance level of the threshold row after
 %       each iteration of the Monte Carlo simulations.
 %
-%   iterSigLevel: The set of loadings that the data loadings must exceed to
-%       pass the significance test after each successive Monte Carlo iteration.
+%   iterSigLevel: The set of eigenvalues that the data values must exceed
+%       for significance after each successive Monte Carlo iteration.
 %
 %   scaModes: The scaled modes used for VARIMAX rotation. Modes are scaled 
 %       by the square root of the loadings.
 %
 %   rotModes: The VARIMAX rotated modes.
 %
-%   rotLoads: The loadings for the rotated modes.
+%   rotEigvals: The eigenvalues for the rotated modes.
 %
 %   rotExpVar: The variance explained by the rotated loadings.
 %
@@ -108,7 +107,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %   rotMatrix: The rotation matrix used to rotate the significant modes.
 %
 %   metadata: Information concerning the settings used for the analysis.
-%       Contains: MC, noisetype, pval, 
+%       Contains: matrix, MC, noisetype, pval, and any additional flags.
 
 % Initial error checks
 
@@ -123,7 +122,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 s = struct();
 
 % Run the initial EOF on the Data
-[s.loadings, s.modes, s.Datax0, s.C] = simpleEOF(Data, matrix, varargin{:});
+[s.modes, s.loadings, s.Datax0, s.C] = simpleEOF(Data, matrix, svdArgs{:});
 
 % Get the signals
 s.signals = getSignals(s.Datax0, s.eigVecs);

@@ -1,62 +1,59 @@
-function[loadings, modes, Datax0, C] = simpleEOF(Data, varargin)
+function[modes, loadings, Datax0, C] = simpleEOF(Data, matrix, varargin)
 %% Gets the EOF modes and loadings of a data matrix.
 % 
-% [loadings, modes, Datax0, C] = simpleEOF(Data)
+% [loadings, modes, Datax0, C] = simpleEOF(Data, matrix)
 %
-% [...] = simpleEOF(Data, 'svds', 'econ')
+% [...] = simpleEOF(Data, matrix, 'svds', 'econ')
 % Uses an economy sized svds decomposition rather than the full svd.
 %
-% [...] = simpleEOF(Data, 'svds', '
+% [...] = simpleEOF(Data, matrix, 'svds', nEigs)
+% Uses the svds decomposition and determines the first nEigs eigenvalues.
+%
+% [...] = simpleEOF(Data, matrix, 'svd')
+% Performs the normal svd.
+%
 %
 % ----- Inputs -----
 % 
 % Data: A 2D data matrix. Each column corresponds to a particular time
 %   series. Data cannot contain NaN entries.
 %
-% *** Optional Inputs ***
-%
-% analysisSpecs: Additional specifications for the covariance / correlation
-%       matrices, and the svd decomposition
-%
-%   Covariance / Correlation Matrices:
-%           'cov': (default) Uses the covariance matrix
-%           'corr': Uses the correlation matrix
-%           'none': Will perform svd directly on data matrix. (The analysis will 
-%                   detrend but not zscore the data)
-%        
-%   Decomposition type: svd or svds (these may have differing runtimes)
-%           'svd': (default) Uses the svd function for decomposition
-%           'svds': Uses the svds function for decomposition
-%             
-%   Decomposition size: The number of eigenvectors found (may affect runtime)
-%           'all': (default)Performs the full decomposition
-%           'econ': Performs the economy size decomposition
-%           neigs: An integer specifying the number of leading eigenvectors to find                
+% matrix: The desired analysis matrix.
+%       'cov': Covariance matrix -- Minimizes variance along EOFs
+%       'corr': Correlation matrix -- Minimizes relative variance along
+%               EOFs. Often useful for data series with significantly
+%               differenct magnitudes.
+%       'none': Perform svd directly on data matrix. (This analysis will 
+%               detrend but not zscore the data)
 %
 %
 % ----- Outputs -----
 %
-% eigVals: a vector of the desired eigenvalues sorted from most to least 
-%     significant.
+% modes: The EOF modes. These are the eigenvectors of the analysis 
+%       matrix. Each column is one mode.
 %
-% eigVecs: The eigenvectors of the corr/cov matrix
+% loadings: A vector of the mode loadings sorted from most to least 
+%       significant. Loadings are the eigenvalues for the analysis matrix.
 %
-% Datax0: Standardized data
-%    mean = 0 if the covariance matrix is used
-%    variance = 1, mean = 0 if the correlation matrix is used
+% modes: The EOF modes. These are the eigenvectors of the analysis 
+%       matrix. Each column is one mode.
+%
+% Datax0: The standardized or detrended data matrix
 %
 % C: The analysis matrix for the PCA. This may be the stadardized data
-%   matrix, its covariance matrix, or its correlation matrix, as appropriate.
+%       matrix, its covariance matrix, or its correlation matrix, as appropriate.
 
+% Get the inputs
+[svdArgs] = parseInputs(varargin(:));
 
 % Error check, determine analysis specifications
 [covcorr, svdFunc, decompArg] = setup(Data, varargin{:});
 
 % Standardize Data
-Datax0 = standardizeData(Data,covcorr);
+Datax0 = standardizeData(Data, matrix);
 
 % Get covariance OR correlation matrix OR leave data as is
-C = getAnalysisMatrix( Datax0, covcorr);
+C = getAnalysisMatrix( Datax0, matrix);
 
 % Run SVD(S)
 [loadings, modes] = quickSVD(C, svdFunc, decompArg);
@@ -70,6 +67,31 @@ end
 
 
 %%%%% Helper Functions %%%%%
+function[svdArgs] = parseInputs(inArgs)
+
+% Set the default
+svdArgs = {'svd'};
+
+if ~isempty( inArgs)
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+        
+        if strcmpi(arg, 'svd')
+            % Do nothing
+        elseif strcmpi(arg, 'svds')
+            if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
+                svdArgs = {'svds', inArgs{k+1}};
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        else
+            error('Unrecognized Input');
+        end
+    end
+end
+end
+
+
 function[covcorr, svdFunc, decompArg] = setup(Data, varargin)
 %% Setup function for simple PCA
 
