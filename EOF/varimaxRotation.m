@@ -1,4 +1,4 @@
-function[rotEigvecs, rotEigvals, rotExpVar, rotMatrix] = varimaxRotation(scaledEigvecs, eigVals)
+function[rotEigvecs, rotEigvals, rotExpVar, rotMatrix] = varimaxRotation(scaModes, eigVals)
 %% Performs a VARIMAX rotation on a set of scaled eigenvectors and eigenvalues.
 %
 % [rotEigvecs, rotMatrix] = varimaxRotation(scaledEigvecs) returns a set fo
@@ -34,13 +34,13 @@ function[rotEigvecs, rotEigvals, rotExpVar, rotMatrix] = varimaxRotation(scaledE
 
 % Error checking, determine if eigenvalues were given
 if nargin == 1
-    [nSets, haveEigvals] = setup(scaledEigvecs);
+    [nSets, haveEigvals] = setup(scaModes);
 else
-    [nSets, haveEigvals] = setup(scaledEigvecs, eigVals);
+    [nSets, haveEigvals] = setup(scaModes, eigVals);
 end
 
 % Perform the rotation
-[rotEigvecs, rotMatrix] = rotatefactors(scaledEigvecs);
+[rotEigvecs, rotMatrix] = rotatefactors(scaModes);
 
 % Calculate the rotated eigenvalues
 if haveEigvals

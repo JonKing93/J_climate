@@ -1,33 +1,28 @@
-function[signals] = getSignals(Datax0, eigVecs)
+function[signals] = getSignals(Datax0, modes)
 %% Gets the signals from a standardized dataset and its eigenvectors.
 %
-% [signals] = getSignals(Datax0, eigVecs)
+% [signals] = getSignals(Datax0, modes)
 %
 % ----- Inputs -----
 %
 % Datax0: A standardized dataset. A 2D matrix with columns that represent
 %       individual time series.
 %
-% eigVecs: A set of the eigenvectors of the standardized dataset. Each 
-%       eigenvector is along one column
+% modes: A set of the modes of the standardized dataset. Each mode is along one column
 %
 %
 % ----- Outputs -----
 %
-% signals: The signals from the dataset that arise from the eigenvectors.
-%       If all eigenvectors are used, no information is lost and the
-%       signals may be used to completely reconstruct the original data.
-%
-%       Using only several of the data eigenvectors acts as a filtering
-%       method, with only the variability arising from the given
-%       eigenvectors contributing to the signals.
-%
+% signals: The signals that arise from redistributing the dataset over the modes.
+%       If all modes are used, no information is lost and the signals may 
+%       be used to completely reconstruct the original data.
+
 
 % Check for errors
-errorCheck(Datax0, eigVecs);
+errorCheck(Datax0, modes);
 
 % Get the signals
-signals = Datax0 * eigVecs;
+signals = Datax0 * modes;
 
 end
 
