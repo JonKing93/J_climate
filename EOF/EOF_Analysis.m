@@ -7,10 +7,6 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 % and rotates the significant modes according to VARIMAX criterion. Returns
 % all calculated values in a structure, s.
 %
-% [s] = EOF_Analysis(..., 'testMC')
-% Also saves the eigenvalues at the required significance level for each
-% Monte Carlo iteration to test convergence.
-%
 % [s] = EOF_Analysis(..., 'showProgress')
 % Displays the current Monte Carlo iteration onscreen.
 %
@@ -20,6 +16,14 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %
 % [s] = EOF_Analysis(..., 'svds', nEigs)
 % Uses the svds decomposition and determines the first nEigs eigenvalues.
+%
+% [s] = EOF_Analysis(..., 'noSigTest')
+% A flag to block the Rule N significance testing. The returned structure
+% will not contain any fields requiring the significance test.
+%
+% [s] = EOF_Analysis(..., 'noConvergeTest')
+% A flag to block the test for Monte Carlo convergence. The returned
+% structure will contain neither iterSigLevel nor iterTrueSig.
 %
 %
 % ----- Inputs -----
@@ -38,11 +42,11 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 % MC: The number of Monte Carlo iterations used in the Rule N significance
 %       test
 %
-% noiseType: The noise used in the ruleN significance test
+% noiseType: The noise used in the Rule N significance test
 %       'white': white Gaussian noise
 %       'red': lag-1 autocorrelated noise with added white noise
 %
-% pval: The significance level that the significance test should pass.        
+% pval: The significance level that the significance test should pass.      
 %
 %
 % ----- Outputs -----
@@ -77,18 +81,16 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %       the Rule N significance test. Each row contains the set of loadings
 %       at a particular confidence interval.
 %
-%   thresh: The index of the threshold row of random loadings in randLoads
-%       that the original data series loadings must exceed in order to pass
-%       the significance test.
+%   thresh: The index of the threshold row in randLoads that the data 
+%       loadings must exceed in order to pass the significance test.
 %
 %   trueSig: The true significance level of the threshold row.
 %
 %   iterTrueSig: The true significance level of the threshold row after
 %       each iteration of the Monte Carlo simulations.
 %
-%   iterSigLevel: The set of loadings for each iteration of the Monte Carlo
-%       simulations that the data series loadings must exceed in order to
-%       pass the significance test.
+%   iterSigLevel: The set of loadings that the data loadings must exceed to
+%       pass the significance test after each successive Monte Carlo iteration.
 %
 %   scaModes: The scaled modes used for VARIMAX rotation. Modes are scaled 
 %       by the square root of the loadings.
@@ -103,20 +105,25 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %
 %   scaRotSignals: The scaled signal for each rotated mode.
 %
-%   rotMatrix: The rotation matrix used to rotate the selected.
+%   rotMatrix: The rotation matrix used to rotate the significant modes.
 %
 %   metadata: Information concerning the settings used for the analysis.
+%       Contains: MC, noisetype, pval, 
 
 % Initial error checks
 
+[showProgress, svdArgs, blockMC, blockIter] = parseInputs(varargin(:));
 
-[notFullSvd] = setup(matrix, varargin{:});
+
+
+
+% [notFullSvd] = setup(matrix, varargin{:});
 
 % Declare the intial structure
 s = struct();
 
 % Run the initial EOF on the Data
-[s.eigVals, s.eigVecs, s.Datax0, s.C] = simpleEOF(Data, matrix, varargin{:});
+[s.loadings, s.modes, s.Datax0, s.C] = simpleEOF(Data, matrix, varargin{:});
 
 % Get the signals
 s.signals = getSignals(s.Datax0, s.eigVecs);
@@ -164,6 +171,48 @@ end
 end
 
 %%%%% Helper Functions %%%%%
+function[showProgress, svdArgs, blockMC, blockIter] = parseInputs(inArgs)
+
+% Set defaults
+showProgress = false;
+svdArgs = {'svd'};
+blockMC = false;
+blockIter = false;
+
+% Get input values
+if ~isempty(inArgs)
+    
+    % Get each input
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+        isSvdArg = false;
+        
+        if isSvdArg
+            % Do nothing
+        elseif strcmpi(arg, 'showProgress') 
+            showProgress = true;
+        elseif strcmpi(arg, 'noSigTest')
+            blockMC = true;
+        elseif strcmpi(arg, 'noConvergeTest')
+            blockIter = true;
+        elseif strcmpi(arg, 'svds')
+            if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
+                svdArgs = {'svds', inArgs{k+1}};
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        else
+            error('Unrecognized Input');
+        end
+    end
+end       
+end             
+            
+
+
+
+
+
 function[notFullSvd] = setup(covcorr, varargin)
 
 notFullSvd = false;

@@ -24,7 +24,7 @@
 %
 % References:
 %   Deser, C., and M. L. Blackmon (1993), Surface climate variations over the
-%   North Atlantic Oceanduring winter:  1900-1989,Journal of Climate,6(9),
+%   North Atlantic Oceanduring winter:  1900-1989, Journal of Climate,6(9),
 %   1743-1753.
 %
 % Written by: 
@@ -32,4 +32,4 @@
 %
 % Acknowledgements:
 %   This work based on assignments and material from the course "Spatiotemporal Data Analysis",
-%   presented by Kevin Anchukaitis.
+%   presented by Kevin Anchukaitis, University of Arizona, Fall 2016.
