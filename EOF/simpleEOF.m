@@ -1,4 +1,4 @@
-function[modes, loadings, Datax0, C] = simpleEOF(Data, matrix, varargin)
+function[modes, eigVals, Datax0, C] = simpleEOF(Data, matrix, varargin)
 %% Gets the EOF modes and loadings of a data matrix.
 % 
 % [loadings, modes, Datax0, C] = simpleEOF(Data, matrix)
@@ -46,8 +46,8 @@ function[modes, loadings, Datax0, C] = simpleEOF(Data, matrix, varargin)
 % Get the inputs
 [svdArgs] = parseInputs(varargin(:));
 
-% Error check, determine analysis specifications
-[covcorr, svdFunc, decompArg] = setup(Data, varargin{:});
+% Error check
+errCheck(Data, matrix);
 
 % Standardize Data
 Datax0 = standardizeData(Data, matrix); % Helper function
@@ -56,11 +56,11 @@ Datax0 = standardizeData(Data, matrix); % Helper function
 C = getAnalysisMatrix( Datax0, matrix);
 
 % Run SVD(S)
-[loadings, modes] = quickSVD(C, svdArgs);
+[eigVals, modes] = quickSVD(C, svdArgs);
 
 % Calculate eigenvalues if SVD is performed directly on data
-if strcmp(covcorr, 'none')
-    loadings = (loadings.^2) / (length(loadings) - 1);
+if strcmpi(matrix, 'none')
+    eigVals = (eigVals.^2) / (length(eigVals) - 1);
 end
 
 end
@@ -92,10 +92,7 @@ if ~isempty( inArgs)
 end
 end
 
-
-function[covcorr, svdFunc, decompArg] = setup(Data, varargin)
-%% Setup function for simple PCA
-
+function[] = errCheck(Data, matrix)
 %% Ensure data matrix is 2D    
 if ~ismatrix(Data)
     error('Data must be a 2D matrix');
@@ -106,49 +103,10 @@ if NaNcheck(Data)
     error('Data cannot contain NaNs');
 end
 
-% Set defaults
-covcorr = 'cov';
-svdFunc = 'svd';
-decompArg = 'all';
-
-% Return if no additional specifications
-if isempty(varargin)
-    return;
+% Matrix is recognized
+if ~any( strcmpi(matrix, {'corr','cov','none'}) )
+    error('Unrecognized matrix');
 end
-
-%% Determine what to do with different analysis specifications
-for k = 1:length(varargin)
-    spec = varargin{:};  
-    
-    if strcmp( spec, 'cov') % Use covariance for cov string
-        covcorr = 'cov';
-    
-    elseif strcmp( spec, 'corr') % Use correlation for corr string
-        covcorr = 'corr';
-        
-    elseif strcmp( spec, 'none') % Use no cov / corr matrix
-        covcorr = 'none';
-        
-    elseif strcmp( spec, 'svd' ) % Use svd
-        svdFunc = 'svd';
-        
-    elseif strcmp( spec, 'svds' ) % Use svds
-        svdFunc = 'svds';
-        
-    elseif strcmp( spec, 'all' ) % Full svd
-        decompArg = 'all';
-        
-    elseif strcmp( spec, 'econ' ) % Economy svd
-        decompArg = 'econ';
-        
-    elseif isscalar(spec)    % Specific number of eigs
-        decompArg = spec;
-        
-    else % Error for anything else
-        error('Unrecognized Input');
-    end    
-end
-
 end
 
 function[Datax0] = standardizeData(Data, covcorr)
