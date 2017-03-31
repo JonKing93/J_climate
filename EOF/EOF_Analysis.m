@@ -84,12 +84,12 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %   thresh: The index of the threshold row in randEigvals that the data 
 %       eigenvalues must exceed in order to pass the significance test.
 %
-%   trueSig: The true significance level of the threshold row.
+%   trueConf: The true confidence level of the threshold row.
 %
-%   iterTrueSig: The true significance level of the threshold row after
+%   iterTrueConf: The true confidence level of the threshold row after
 %       each iteration of the Monte Carlo simulations.
 %
-%   iterSigLevel: The set of eigenvalues that the data values must exceed
+%   iterSigEigs: The set of eigenvalues that the data values must exceed
 %       for significance after each successive Monte Carlo iteration.
 %
 %   scaModes: The scaled modes used for VARIMAX rotation. Modes are scaled 
@@ -111,7 +111,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %       Contains: matrix, MC, noisetype, pval, and any additional flags.
 
 % Parse Inputs, all error checking will occur in called functions
-[showProgress, svdArgs, blockMC, blockIter] = parseInputs(varargin(:));
+[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin(:));
 
 % Do some setup
 [incompleteSVD] = setup(matrix, svdArgs);
@@ -137,22 +137,17 @@ end
 
 % Rule N, and rotation require significance testing to continue
 if ~blockMC
+
+    % Run the Rule N significance test
+    [s.nSig, s.randEigvals, s.normVals, s.thresh, s.trueConf, s.iterSigEigs, s.iterTrueConf] = ...
+            ruleN(Data, matrix, s.eigVals, MC, noiseType, pval, svdArgs, showProgress, convergeTest);
     
-    if ~blockIter
-        % Run the ruleN significance test and test Monte Carlo convergence
-        [s.nSig, s.randEigvals, s.normVals, s.thresh, s.trueSig, s.iterSigLevel, s.iterTrueSig] = ...
-            ruleN(Data, s.eigVals, MC, noiseType, pval, matrix, svdArgs);
-    else
-        % Do not include the convergence test
-        [s.nSig, s.randEigvals, s.normVals, s.thresh, s.trueSig] = ...
-            ruleN(Data, s.eigVals, MC, noiseType, pval, matrix, svdArgs);
-    end
-    
-    % Rotate the significant vectors if more than 1 are significant)
-    if s.numSig < 2   % Less than 2 are significant, cannot rotate
+    % Less than 2 significant eigs, cannot rotate
+    if s.numSig < 2   
          % Do nothing
     
-    else % There are significant modes, rotate them...
+    % There are significant modes, rotate them...
+    else 
 
         % Scale the eigenvectors
         s.scaModes = scaleModes( s.modes(:,1:s.nSig), s.eigVals(1:s.nSig));
@@ -170,16 +165,17 @@ if ~blockMC
     end
 
 end
+end
 
 %%%%% Helper Functions %%%%%
-function[showProgress, svdArgs, blockMC, blockIter] = parseInputs(varargin)
+function[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin)
 inArgs = varargin;
 
 % Set defaults
-showProgress = false;
+showProgress = 'noProgress';
 svdArgs = {'svd'};
 blockMC = false;
-blockIter = false;
+convergeTest = 'testConverge';
 
 % Get input values
 if ~isempty(inArgs)
@@ -192,11 +188,11 @@ if ~isempty(inArgs)
         if isSvdArg
             % Do nothing
         elseif strcmpi(arg, 'showProgress') 
-            showProgress = true;
+            showProgress = 'showProgress';
         elseif strcmpi(arg, 'noSigTest')
             blockMC = true;
         elseif strcmpi(arg, 'noConvergeTest')
-            blockIter = true;
+            convergeTest = 'noConvergeTest';
         elseif strcmpi(arg, 'svds')
             if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
                 svdArgs = {'svds', inArgs{k+1}};

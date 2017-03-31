@@ -1,19 +1,19 @@
-function[nSig, randEigSort, normEigvals, thresh, trueConf, iterSigEigs, iterTrueConf] = ...
+function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
     ruleN(Data, matrix, eigVals, MC, noiseType, pval, varargin)
 %% Runs a Rule N significance test on a data matrix and its eigenvalues.
 %
-% [nSig, randEigSort, normEigvals, thresh, trueConf, iterTruePval, iterConfEigs] = ...
+% [nSig, randEigSort, normEigvals, thresh, trueConf, iterTrueConf, iterSigEigs] = ...
 %    ruleN(Data, matrix, eigVals, MC, noiseType, pval)
 % Runs a Rule N significance test on a dataset and saves Monte Carlo
 % convergence data.
 %
-% [...] = ruleN(..., 'showProgress')
-% Displays the current Monte Carlo iteration against the total number of
+% [...] = ruleN(..., showProgress)
+% Choose whether to display the current Monte Carlo iteration against the total number of
 % simulations.
 %
-% [nSig, randEigSort, normEigvals, thresh, trueConf] = ruleN(..., 'noConvergeTest')
-% Runs a Rule N significance test but blocks recording of the Monte Carlo 
-% iteration convergence. This may speed runtime for large analyses, but
+% [nSig, randEigSort, normEigvals, thresh, trueConf] = ruleN(..., convergeTest)
+% Choose whether to include or block recording of the Monte Carlo 
+% iteration convergence. Blocking may speed runtime for large analyses, but
 % causes a loss of information.
 %
 % [...] = ruleN(..., 'svds', 'econ')
@@ -47,6 +47,14 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, iterSigEigs, iterTrue
 % pval: The significance level desired for the test to pass. Must be on the
 %       interval (0 1).
 %
+% showProgress: A flag for displaying the current Monte Carlo iteration number
+%       'showProgress' -- Displays the current Monte Carlo iteration number
+%       'noProgress' (Default) -- Does not display the current Monte Carlo number
+%
+% convergeTest: A flag to save or ignore Monte Carlo convergence information
+%       'testConverge' (Default) -- Saves the Monte Carlo convergence data
+%       'noConvergeTest' -- Does not save Monte Carlo convergence data
+%
 %            
 % ----- Outputs -----
 %
@@ -67,14 +75,13 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, iterSigEigs, iterTrue
 % iterTrueConf: The true significance level of the threshold eigenvalues
 %       after each additional Monte Carlo iteration.
 
-%%%%%%%%%%%%!!!!!!!!!!!!![ar1, normEigvals] = setup(Data, eigVals, noiseType, pval, MC);
-
+% Inputs and error checking
 [showProgress, testConvergence, svdArgs] = parseInputs(varargin(:));
+errCheck(Data, eigVals, pval, MC)
 
 % Preallocate output
-[m, n] = size(Data);
+[~, n] = size(Data);
 randEigvals = NaN(MC,n);
-
 if testConvergence
     iterSigEigs = NaN(MC, n);
     iterTrueConf = NaN(MC, 1);
@@ -91,16 +98,11 @@ for k = 1:MC
         fprintf('Running Monte Carlo simulation: %i / %i\r\n', k, MC);
     end
     
-    % Create a random matrix with the desired noise properties.
-    g = randNoiseSeries(Data, noiseType, 'scale');
-    
-    buildMatrix(noiseType,m,n,ar1);
-    
-    % Scale to the standard deviation of the original matrix
-    g = g * sqrt( diag( var( Data)));
+    % Create a random matrix with the desired noise properties, scaled to data standard deviation.
+    g = randNoiseSeries(noiseType, Data);
     
     % Run an EOF analysis on the random matrix
-    [randEig, ~] = simpleEOF(g, covcorr, varargin{:});
+    [randEig, ~] = simpleEOF(g, matrix, svdArgs);
     
     % Normalize the eigenvalues
     randEig = randEig ./ sum(randEig);
@@ -114,7 +116,7 @@ for k = 1:MC
         randEigvals = sort(randEigvals);
         
         % Calculate the current confidence level threshold
-        thresh = ceil(k * pval);
+        thresh = ceil(k * (1-pval));
         iterTrueConf(k) = thresh / k;
         
         % Get the set of values on the confidence interval
@@ -123,12 +125,22 @@ for k = 1:MC
     
 end
 
-% Sort the eigenvalues
-randEigSort = sort(randEigvals);
+% Sort the eigenvalues when there is no convergence test
+if ~testConverge
+    randEigSort = sort(randEigvals);
+else
+    varargout = cell(2,1);
+    varargout{1} = iterSigEigs;
+    varargout{2} = iterTrueConf;
+end
 
-% Calculate the confidence level threshold
-thresh = ceil( MC * pval);
+
+% Calculate the confidence level threshold and its true confidence level
+thresh = ceil( MC * (1-pval) );
 trueConf = thresh / MC;
+
+% Normalize the data eigenvalues
+normEigvals = eigVals ./ sum(eigVals);
 
 % Find the significant values
 for k = 1:n
@@ -162,8 +174,14 @@ if ~isempty(inArgs)
             % Do nothing
         elseif strcmpi(arg, 'showProgress')
             showProgress = true;
+        elseif strcmpi(arg, 'blockProgress')
+            % Do nothing
         elseif strcmpi(arg, 'noConvergeTest')
             testConvergence = false;
+        elseif strcmpi(arg, 'testConverge')
+            % Do nothing
+        elseif strcmpi(arg, 'svd')
+            % Do nothing
         elseif strcmpi(arg, 'svds')
             if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
                 svdArgs = {'svds', inArgs{k+1}};
@@ -177,75 +195,15 @@ if ~isempty(inArgs)
 end
 end
 
-
-
-
-
-
-
-
-
-
-function[g] = buildMatrix(noiseType, m, n, ar1)
-%% Builds the matrix g as appropriate for red or white noise
-switch noiseType
-    
-    % Random matrix for white noise
-    case 'white'
-        % Create a random matrix
-        g = randn(m,n);
-    
-    % Add lag-1 autocorrelation for red noise
-    case 'red'
-        % Preallocate 
-        g = NaN(m,n);
-        
-        % Create random first row
-        g(1,:) = randn(1,n);
-        
-        % Calculate autocorrelation through matrix. Add random noise
-        for j = 1:m-1
-            g(j+1,:) = (ar1' .* g(j,:)) + randn(1,n);
-        end
-        
-        % Standardize so later scaling is correct
-        g = zscore(g);   
-end
-end
-
-function[ar1, normEigvals] = setup(Data, eigVals, noiseType, confidence, MC)
-
-% Ensure Data is 2D
-if ~ismatrix(Data)
-    error('RuleN is for 2D Data matrices');
-end
-
-% Get noise type
-if ~( strcmp(noiseType,'red') || strcmp(noiseType, 'white') )
-    error('Unrecognized noise type');
-end
-
-% Precalculate ar1 if required
-if strcmp(noiseType, 'red')
-    r = corr( Data(1:end-1,:), Data(2:end,:) );
-    ar1 = diag(r);
-else
-    ar1 = NaN;
-end    
-
-% Normalize Eigenvalues
-normEigvals = eigVals ./ sum(eigVals);
-
-% Ensure confidence interval is on (0 1)
-if confidence <=0 || confidence >=1
-    error('confidence must be on the interval (0,1)');
-end
-
-% Ensure the Monte Carlo number is positive
-if MC < 1
+function[] = errCheck(Data, eigVals, MC, pval)
+if hasNaN(Data)
+    error('Data cannot contain NaN');
+elseif hasNaN(eigVals)
+    error('eigVals cannot contain NaN');
+elseif MC < 1
     error('The Monte Carlo number must be a positive integer');
+elseif pval<=0 || pval>=1
+    error('The p values must be on the interval (0,1)');
 end
-
-
 end
     
