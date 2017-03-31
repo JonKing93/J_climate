@@ -1,4 +1,4 @@
-function[nSig, randEigSort, normEigvals, thresh, trueConf, iterTrueConf, iterConfEigs] = ...
+function[nSig, randEigSort, normEigvals, thresh, trueConf, iterSigEigs, iterTrueConf] = ...
     ruleN(Data, matrix, eigVals, MC, noiseType, pval, varargin)
 %% Runs a Rule N significance test on a data matrix and its eigenvalues.
 %
@@ -7,11 +7,23 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, iterTrueConf, iterCon
 % Runs a Rule N significance test on a dataset and saves Monte Carlo
 % convergence data.
 %
-% [nSig, randEigSort, normEigvals, thresh, trueConf] = ...
-%    ruleN(..., 'noConvergeTest')
+% [...] = ruleN(..., 'showProgress')
+% Displays the current Monte Carlo iteration against the total number of
+% simulations.
+%
+% [nSig, randEigSort, normEigvals, thresh, trueConf] = ruleN(..., 'noConvergeTest')
+% Runs a Rule N significance test but blocks recording of the Monte Carlo 
+% iteration convergence. This may speed runtime for large analyses, but
+% causes a loss of information.
+%
+% [...] = ruleN(..., 'svds', 'econ')
+% Uses the economy sized svds decomposition during Rule N.
+%
+% [...] = ruleN(..., 'svd', nModes')
+% Uses the svds decomposition to get eigenvalues for the first nModes
+% modes.
+%
 % 
-%
-%
 % ----- Inputs -----
 %
 % Data: A 2D data matrix. Each column corresponds to a series of
@@ -22,8 +34,7 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, iterTrueConf, iterCon
 %       'corr': Correlation matrix -- Minimizes relative variance along
 %               EOFs. Often useful for data series with significantly
 %               different magnitudes.
-%       'none': Perform svd directly on data matrix. (This analysis will 
-%               detrend but not zscore the data)
+%       'none': Perform svd directly on data matrix.
 %
 % eigVals: The eigenvalues of the analysis matrix of Data
 %
@@ -45,34 +56,45 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, iterTrueConf, iterCon
 %
 % normEigvals: The normalized data eigenvalues
 % 
-% thresh: The integer threshold that eigenvalues were required to pass
+% thresh: The index of the threshold row in randEigSort of which data
+%       eigenvalues must exceed to remain significant.
 %
-% realConf: The true confidence interval of this threshold
-% 
+% trueConf: The true confidence level of this threshold
+%
+% iterSigEigs: The set of random eigenvalues that data eigenvalues must
+%       exceed to remain significant after each additional Monte Carlo iteration.
+%
+% iterTrueConf: The true significance level of the threshold eigenvalues
+%       after each additional Monte Carlo iteration.
 
+%%%%%%%%%%%%!!!!!!!!!!!!![ar1, normEigvals] = setup(Data, eigVals, noiseType, pval, MC);
 
-[ar1, normEigvals] = setup(Data, eigVals, noiseType, pval, MC);
+[showProgress, testConvergence, svdArgs] = parseInputs(varargin(:));
 
-% Get the data size
+% Preallocate output
 [m, n] = size(Data);
-
-% Preallocate
 randEigvals = NaN(MC,n);
-testConverge = true; %%%%%%%%AHHHHHHHHHHHHHHH FIX THIS!!!!!!!!!!!!!!!!!!
-if testConverge
-    iterConfEigs = NaN(MC, n);
+
+if testConvergence
+    iterSigEigs = NaN(MC, n);
     iterTrueConf = NaN(MC, 1);
 else
-    iterConfEigs = [];
+    iterSigEigs = [];
     iterTrueConf = [];
 end
 
 % Run Rule N...
 for k = 1:MC
-    k
     
-    % Create a random matrix
-    g = buildMatrix(noiseType,m,n,ar1);
+    % Display progress if desired
+    if showProgress
+        fprintf('Running Monte Carlo simulation: %i / %i\r\n', k, MC);
+    end
+    
+    % Create a random matrix with the desired noise properties.
+    g = randNoiseSeries(Data, noiseType, 'scale');
+    
+    buildMatrix(noiseType,m,n,ar1);
     
     % Scale to the standard deviation of the original matrix
     g = g * sqrt( diag( var( Data)));
@@ -96,7 +118,7 @@ for k = 1:MC
         iterTrueConf(k) = thresh / k;
         
         % Get the set of values on the confidence interval
-        iterConfEigs(k,:) = randEigvals(thresh,:);
+        iterSigEigs(k,:) = randEigvals(thresh,:);
     end
     
 end
@@ -119,6 +141,51 @@ end
 end
 
 %%%%% Helper Functions %%%%%
+function[showProgress, testConvergence, svdArgs] = parseInputs(varargin)
+inArgs = varargin;
+
+% Set defaults
+showProgress = false;
+testConvergence = true;
+svdArgs = {'svd'};
+
+% Get input values
+if ~isempty(inArgs)
+    
+    % Get each input
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+        
+        isSVDarg = false;
+        
+        if isSVDarg
+            % Do nothing
+        elseif strcmpi(arg, 'showProgress')
+            showProgress = true;
+        elseif strcmpi(arg, 'noConvergeTest')
+            testConvergence = false;
+        elseif strcmpi(arg, 'svds')
+            if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
+                svdArgs = {'svds', inArgs{k+1}};
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        else
+            error('Unrecognized Input');
+        end
+    end
+end
+end
+
+
+
+
+
+
+
+
+
+
 function[g] = buildMatrix(noiseType, m, n, ar1)
 %% Builds the matrix g as appropriate for red or white noise
 switch noiseType

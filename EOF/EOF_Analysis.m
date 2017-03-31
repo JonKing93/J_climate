@@ -36,8 +36,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %       'corr': Correlation matrix -- Minimizes relative variance along
 %               EOFs. Often useful for data series with significantly
 %               different magnitudes.
-%       'none': Perform svd directly on data matrix. (This analysis will 
-%               detrend but not zscore the data)
+%       'none': Perform svd directly on data matrix.
 %  
 % MC: The number of Monte Carlo iterations used in the Rule N significance
 %       test

@@ -23,8 +23,7 @@ function[eigVals, modes, Datax0, C] = simpleEOF(Data, matrix, varargin)
 %       'corr': Correlation matrix -- Minimizes relative variance along
 %               EOFs. Useful for data series with significantly
 %               different magnitudes.
-%       'none': Perform svd directly on data matrix. (This analysis will 
-%               detrend but not zscore the data)
+%       'none': Perform svd directly on data matrix.
 %
 %
 % ----- Outputs -----
