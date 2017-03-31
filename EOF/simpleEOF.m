@@ -43,7 +43,7 @@ function[eigVals, modes, Datax0, C] = simpleEOF(Data, matrix, varargin)
 %       matrix, its covariance matrix, or its correlation matrix, as appropriate.
 
 % Get the inputs
-[svdArgs] = parseInputs(varargin(:));
+[svdArgs] = parseInputs(varargin{:});
 
 % Error check
 errCheck(Data, matrix);

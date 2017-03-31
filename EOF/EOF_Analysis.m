@@ -143,7 +143,7 @@ if ~blockMC
             ruleN(Data, matrix, s.eigVals, MC, noiseType, pval, svdArgs, showProgress, convergeTest);
     
     % Less than 2 significant eigs, cannot rotate
-    if s.numSig < 2   
+    if s.nSig < 2   
          % Do nothing
     
     % There are significant modes, rotate them...

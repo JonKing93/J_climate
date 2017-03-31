@@ -61,7 +61,8 @@ elseif strcmpi(noiseType, 'red')
     
     % Calculate autocorrelation through the matrix, add white noise
     for k = 1:lts-1
-        randSeries(k+1,:) = ( ar1 .* randSeries(k,:) ) + randn(1, nSeries);
+        randSeries(k+1,:) = ( ar1 .* randSeries(k,:) );
+        randSeries(k+1,:) = randSeries(k+1,:) + randn(1, nSeries);
     end
     
 % Othr noise type

@@ -76,13 +76,13 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
 %       after each additional Monte Carlo iteration.
 
 % Inputs and error checking
-[showProgress, testConvergence, svdArgs] = parseInputs(varargin{:});
+[showProgress, testConverge, svdArgs] = parseInputs(varargin{:});
 errCheck(Data, eigVals, MC, pval)
 
 % Preallocate output
 [~, n] = size(Data);
 randEigvals = NaN(MC,n);
-if testConvergence
+if testConverge
     iterSigEigs = NaN(MC, n);
     iterTrueConf = NaN(MC, 1);
 else
@@ -129,6 +129,7 @@ end
 if ~testConverge
     randEigSort = sort(randEigvals);
 else
+    randEigSort = randEigvals;
     varargout = cell(2,1);
     varargout{1} = iterSigEigs;
     varargout{2} = iterTrueConf;
