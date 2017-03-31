@@ -27,6 +27,9 @@
 %   North Atlantic Oceanduring winter:  1900-1989, Journal of Climate,6(9),
 %   1743-1753.
 %
+%   Principal Component Analysis in Metereology and Oceanography. Rudolph
+%   Preisendorfer. Elsevier Science Publishers. New York, 1988.
+%
 % Written by: 
 %   Jonathan King (jonking93@email.arizona.edu)
 %

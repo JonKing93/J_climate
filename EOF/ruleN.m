@@ -1,46 +1,42 @@
-function[lastSigNum, randEigSort, normEigvals, thresh, realConf, iterTrueConf, iterConfEigs] = ...
-    ruleN(Data, eigVals, MC, noiseType, confidence, covcorr, varargin)
-%% Runs a Rule N significance test on a data matrix and its eigenvalues / PC loadings.
+function[nSig, randEigSort, normEigvals, thresh, trueConf, iterTrueConf, iterConfEigs] = ...
+    ruleN(Data, matrix, eigVals, MC, noiseType, pval, varargin)
+%% Runs a Rule N significance test on a data matrix and its eigenvalues.
 %
-% [lastSigNum, randEigSort, normEigvals, thresh, realConf] = ...
-%    ruleN(Data, eigVals, MC, noiseType, confidence, covcorr, analysisSpecs)
+% [nSig, randEigSort, normEigvals, thresh, trueConf, iterTruePval, iterConfEigs] = ...
+%    ruleN(Data, matrix, eigVals, MC, noiseType, pval)
+% Runs a Rule N significance test on a dataset and saves Monte Carlo
+% convergence data.
+%
+% [nSig, randEigSort, normEigvals, thresh, trueConf] = ...
+%    ruleN(..., 'noConvergeTest')
+% 
+%
 %
 % ----- Inputs -----
 %
 % Data: A 2D data matrix. Each column corresponds to a series of
 %   observations.
 %
-% normVals: The eigenvalues of Data
+% matrix: The desired analysis matrix.
+%       'cov': Covariance matrix -- Minimizes variance along EOFs
+%       'corr': Correlation matrix -- Minimizes relative variance along
+%               EOFs. Often useful for data series with significantly
+%               different magnitudes.
+%       'none': Perform svd directly on data matrix. (This analysis will 
+%               detrend but not zscore the data)
 %
-% MC: The Monte Carlo number of iterations
+% eigVals: The eigenvalues of the analysis matrix of Data
+%
+% MC: The number of Monte Carlo iterations to perform
 %
 % noiseType: 
 %   'white':    white noise
-%   'red':      lag-1 red noise with added white noise
+%   'red':      lag-1 autocorrelated red noise with Gaussian white noise.
 %
-% confidence: Desired confidence interval for ruleN to pass. Must be on the
-%       interval (0 1)
+% pval: The significance level desired for the test to pass. Must be on the
+%       interval (0 1).
 %
-% covcorr: The desired analysis matrix.
-%       'cov': Covariance matrix
-%       'corr': Correlation matrix
-%       'none': Perform svd directly on data matrix. (The analysis will 
-%               detrend but not zscore the data)
-%
-% *** Optional Inputs ***
-%
-% analysisSpecs:
-%
-%   Decomposition type: svd or svds (these may have differing runtimes)
-%           'svd': (default) Uses the svd function for decomposition
-%           'svds': Uses the svds function for decomposition
-%             
-%   Decomposition size: The number of eigenvectors found (may affect runtime)
-%           'all': (default)Performs the full decomposition
-%           'econ': Performs the economy size decomposition
-%           neigs: An integer specifying the number of leading eigenvectors to find                
-%
-%
+%            
 % ----- Outputs -----
 %
 % lastSigNum: The number of eigenvalues that pass rule N
@@ -53,14 +49,9 @@ function[lastSigNum, randEigSort, normEigvals, thresh, realConf, iterTrueConf, i
 %
 % realConf: The true confidence interval of this threshold
 % 
-%
-% ----- Background Reading -----
-%
-% Principal Component Analysis in Metereology and Oceanography. Rudolph
-% Preisendorfer. Elsevier Science Publishers. New York, 1988.
-%
 
-[ar1, normEigvals] = setup(Data, eigVals, noiseType, confidence, MC);
+
+[ar1, normEigvals] = setup(Data, eigVals, noiseType, pval, MC);
 
 % Get the data size
 [m, n] = size(Data);
@@ -101,7 +92,7 @@ for k = 1:MC
         randEigvals = sort(randEigvals);
         
         % Calculate the current confidence level threshold
-        thresh = ceil(k * confidence);
+        thresh = ceil(k * pval);
         iterTrueConf(k) = thresh / k;
         
         % Get the set of values on the confidence interval
@@ -114,13 +105,13 @@ end
 randEigSort = sort(randEigvals);
 
 % Calculate the confidence level threshold
-thresh = ceil( MC * confidence);
-realConf = thresh / MC;
+thresh = ceil( MC * pval);
+trueConf = thresh / MC;
 
 % Find the significant values
 for k = 1:n
     if normEigvals(k) <= randEigSort(thresh, k)
-        lastSigNum = k-1;
+        nSig = k-1;
         break;
     end
 end
