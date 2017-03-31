@@ -76,8 +76,8 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
 %       after each additional Monte Carlo iteration.
 
 % Inputs and error checking
-[showProgress, testConvergence, svdArgs] = parseInputs(varargin(:));
-errCheck(Data, eigVals, pval, MC)
+[showProgress, testConvergence, svdArgs] = parseInputs(varargin{:});
+errCheck(Data, eigVals, MC, pval)
 
 % Preallocate output
 [~, n] = size(Data);

@@ -3,6 +3,7 @@ function[signals] = getSignals(Datax0, modes)
 %
 % [signals] = getSignals(Datax0, modes)
 %
+%
 % ----- Inputs -----
 %
 % Datax0: A standardized dataset. A 2D matrix with columns that represent
@@ -27,7 +28,7 @@ signals = Datax0 * modes;
 end
 
 %%%%% Helper functions %%%%%
-function[] = errorCheck(Datax0, eigVecs)
+function[] = errorCheck(Datax0, modes)
 
 % Ensure Datax0 is 2D
 if ~ismatrix(Datax0)
@@ -35,24 +36,24 @@ if ~ismatrix(Datax0)
 end
 
 % Ensure eigVecs is 2D
-if ~ismatrix(eigVecs)
-    error('eigVecs must be a 2D matrix');
+if ~ismatrix(modes)
+    error('modes must be a 2D matrix');
 end
 
 % Check for NaNs
-if NaNcheck(Datax0)
+if hasNaN(Datax0)
     error('Datax0 cannot contain NaNs');
 end
 
-if NaNcheck(eigVecs)
-    error('eigVecs cannot contain NaNs');
+if hasNaN(modes)
+    error('modes cannot contain NaNs');
 end
 
 % Ensure matrix dimensions align
 [~,x] = size(Datax0);
-[y,~] = size(eigVecs);
+[y,~] = size(modes);
 if x ~= y
-    error('Data and eigVecs have mismatched sizes');
+    error('Data and modes have mismatched sizes');
 end
 
 end

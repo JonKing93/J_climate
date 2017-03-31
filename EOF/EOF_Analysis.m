@@ -114,7 +114,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 [showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin(:));
 
 % Do some setup
-[incompleteSVD] = setup(matrix, svdArgs);
+% % % % % % % % % % % % % % % [incompleteSVD] = setup(matrix, svdArgs);
 
 % Declare the intial structure
 s = struct();
@@ -128,12 +128,12 @@ s.signals = getSignals(s.Datax0, s.modes);
 % Get the scaled signals
 s.scaledSignals = scaleSignals(s.signals, s.eigVals);
 
-% Get the explained variance
-if incompleteSVD   % Use the data variance if svd was incomplete
-    s.expVar = explainedVar(s.eigVals, s.Datax0);
-else
-    s.expVar = explainedVar(s.eigVals);
-end    
+% % % % % % % % % % % % % % % % Get the explained variance
+% % % % % % % % % % % % % % % if incompleteSVD   % Use the data variance if svd was incomplete
+% % % % % % % % % % % % % % %     s.expVar = explainedVar(s.eigVals, s.Datax0);
+% % % % % % % % % % % % % % % else
+% % % % % % % % % % % % % % %     s.expVar = explainedVar(s.eigVals);
+% % % % % % % % % % % % % % % end    
 
 % Rule N, and rotation require significance testing to continue
 if ~blockMC
@@ -154,7 +154,7 @@ if ~blockMC
 
         % Rotate the eigenvectors
         [s.rotModes, s.rotEigvals, s.rotExpVar, s.rotMatrix] = ...
-            varimaxRotation( s.scaModes, s.modes(1:s.nSig));
+            varimaxRotation( s.scaModes(:,1:s.nSig));
 
         % Get the rotated signals
         s.rotSignals = getSignals(s.Datax0, s.rotModes);
@@ -205,33 +205,33 @@ if ~isempty(inArgs)
     end
 end       
 end             
-            
-function[incompleteSvd] = setup(matrix, svdArgs)
-
-incompleteSvd = false;
-
-if length(svdArgs)
-% Determine if explainedVar will need extra inputs
-for ks = 1:length(varargin)
-    spec = varargin{ks};
-    
-    if isscalar(spec)  % Only the first several eigs are stored
-        incompleteSvd = true; 
-    elseif strcmp(spec, 'econ') % Economy size SVD is performed
-        incompleteSvd = true;
-    end
-    
-    if notFullSVD && strcmp(covcorr, 'none')
-        error('Explained variance cannot be calculated when an incomplete SVD is performed directly on a data matrix.');
-    end
-end
-    
-% SVDS is always economy sized
-if strcmp(covcorr, 'svds')
-    incompleteSvd = true;
-end
-    
-
-
-end
-
+% % % % % % % % %             
+% % % % % % % % % function[incompleteSvd] = setup(matrix, svdArgs)
+% % % % % % % % % 
+% % % % % % % % % incompleteSvd = false;
+% % % % % % % % % 
+% % % % % % % % % if length(svdArgs)
+% % % % % % % % % % Determine if explainedVar will need extra inputs
+% % % % % % % % % for ks = 1:length(varargin)
+% % % % % % % % %     spec = varargin{ks};
+% % % % % % % % %     
+% % % % % % % % %     if isscalar(spec)  % Only the first several eigs are stored
+% % % % % % % % %         incompleteSvd = true; 
+% % % % % % % % %     elseif strcmp(spec, 'econ') % Economy size SVD is performed
+% % % % % % % % %         incompleteSvd = true;
+% % % % % % % % %     end
+% % % % % % % % %     
+% % % % % % % % %     if notFullSVD && strcmp(covcorr, 'none')
+% % % % % % % % %         error('Explained variance cannot be calculated when an incomplete SVD is performed directly on a data matrix.');
+% % % % % % % % %     end
+% % % % % % % % % end
+% % % % % % % % %     
+% % % % % % % % % % SVDS is always economy sized
+% % % % % % % % % if strcmp(covcorr, 'svds')
+% % % % % % % % %     incompleteSvd = true;
+% % % % % % % % % end
+% % % % % % % % %     
+% % % % % % % % % 
+% % % % % % % % % 
+% % % % % % % % % end
+% % % % % % % % % 

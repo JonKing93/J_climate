@@ -26,7 +26,7 @@ function[eigvals, eigvecs] = quickSVD(C, varargin)
 %       eigenvector.
 
 % Parse Inputs
-[svdFunc, svdsArg] = parseInputs( varargin(:));
+[svdFunc, svdsArg] = parseInputs( varargin{:});
 
 % Error check
 errCheck(C);

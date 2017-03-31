@@ -1,71 +1,63 @@
-function[sigScaled] = scaleSignals(signals, eigVals)
+function[scaSignals] = scaleSignals(signals, eigVals)
 %% Scales signals to the standard deviation of the standardized data.
 %
 % [sigScaled] = scaleSignals(signals, eigVals)
 %
 % ----- Inputs -----
 %
-% signals: a set of signals from a PCA analysis. If signals is a 3D stack
-%   of matrices each dim1 x dim2 matrix correpsonds to one set of signals.
+% signals: a set of signals from an EOF analysis. Each column is one signal
 %
-% eigVals: A matrix containing the associated eigenvalues for each set of 
-%   Each column contains the eigenvalues for one set of signals. The
+% eigVals: A matrix containing the associated eigenvalues for each set of
+%   signals Each column contains the eigenvalues for one set of signals. The
 %   eigenvalues SHOULD NOT be normalized.
 %
 %
 % ----- Outputs -----
 %
-% sigScaled: The set of scaled signals. These signals may be plotted
+% scaSignals: The set of scaled signals. These signals may be plotted
 %   directly against the standardized dataset.
 
-[nsignals , nstack] = setup(signals, eigVals);
+errCheck(signals, eigVals);
 
-% Preallocate signals
-sigScaled = NaN(size(signals));
-
-% Take square root of eigVals
-eigVals = sqrt(eigVals);
-
-% for each matrix of signals...
-for j = 1:nstack
-    for k = 1:nsignals % For each signal
-        % Scale the signal by the corresponding eigenvalue
-        sigScaled(:,k,j) = signals(:,k,j) ./ sqrt(eigVals(k,j));
-    end
+% Make the eigenvalues a row
+if ~isrow(eigVals)
+    eigVals = eigVals';
 end
 
+% Scale each signal by the corresponding eigenvalue
+scaSignals = signals ./ sqrt(eigVals);
 end
 
 %%%%% Helper Functions %%%%%
-function[nsignals, nstack] = setup(signals, eigVals)
+function[nsignals] = errCheck(signals, eigVals)
 
-% Ensure signals is 3D
-if ndims(signals) > 3
-    error('signals must be 3D');
+% Ensure signals is a matrix
+if ~ismatrix(signals)
+    error('signals must be a matrix');
 end
 
-% Ensure eigVals is a matrix
-if ~ismatrix(eigVals)
-    error('eigVals must be a matrix');
+% Ensure eigVals is a vector
+if ~isvector(eigVals)
+    error('eigVals must be a vector');
 end
 
 % Ensure there are no NaNs
-if NaNcheck(signals)
+if hasNaN(signals)
     error('signals cannot contain NaN');
 end
-if NaNcheck(eigVals)
+if hasNaN(eigVals)
     error('eigVals cannot contain NaN');
 end
 
 % Ensure eigVals are positive
 if any(any( eigVals < 0))
-    error('The eigenvalues should all be positive');
+    error('The eigenvalues must all be positive');
 end
 
 % Ensure the signals and eigenvalues align properly
-[~, nsignals, nstack] = size(signals);
-[neig, neigSets] = size(eigVals);
-if nsignals ~= neig || nstack ~= neigSets
+[~, nsignals,] = size(signals);
+[neig] = length(eigVals);
+if nsignals ~= neig
     error('signals and eigVals do not have matching dimensions');
 end
 end

@@ -14,7 +14,7 @@ function[scaledModes] = scaleModes(modes, eigVals)
 %
 % ----- Outputs -----
 %
-% scaledModes: The scaled eigenvectors.
+% scaledModes: The scaled EOF modes
 
 % Error check and make eigVals a row vector
 [eigVals] = setup(modes, eigVals);

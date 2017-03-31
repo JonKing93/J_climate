@@ -1,18 +1,18 @@
-function[rotEigvecs, rotEigvals, rotExpVar, rotMatrix] = varimaxRotation(scaModes, eigVals)
+function[rotModes, rotEigvals, rotExpVar, rotMatrix] = varimaxRotation(scaModes, eigVals)
 %% Performs a VARIMAX rotation on a set of scaled eigenvectors and eigenvalues.
 %
-% [rotEigvecs, rotMatrix] = varimaxRotation(scaledEigvecs) returns a set fo
+% [rotModes, rotMatrix] = varimaxRotation(scaledEigvecs) returns a set fo
 %   eigenvectors rotated using the varimax criterion and the corresponding
 %   rotation matrix
 %
-% [rotEigvecs, rotMatrix, rotEigvals] = varimaxRotation(scaledEigvecs, eigVals)
+% [rotModes, rotMatrix, rotEigvals] = varimaxRotation(scaledEigvecs, eigVals)
 %   also returns the rotated eigenvalues when the initial values are given
 %   as input.
 %
 % ----- Inputs -----
 %
-% scaledEigvecs: A set of eigenvectors / modes scaled for varimax rotation.
-%   Each column contains 1 mode. If scaledEigvecs is 3D each dim1 x dim2
+% scaModes: A set of modes scaled for varimax rotation by the square root
+% of associated eigenvalues. Each column contains 1 mode.
 %   matrix contains a set of eigenvectors
 %
 % *** Optiontal Inputs ***
@@ -40,7 +40,7 @@ else
 end
 
 % Perform the rotation
-[rotEigvecs, rotMatrix] = rotatefactors(scaModes);
+[rotModes, rotMatrix] = rotatefactors(scaModes);
 
 % Calculate the rotated eigenvalues
 if haveEigvals

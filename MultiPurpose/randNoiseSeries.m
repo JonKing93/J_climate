@@ -33,7 +33,7 @@ function[randSeries] = randNoiseSeries(noiseType, Data, varargin)
 % randSeries: The matrix of randomly generated, noisy time series. Each column
 %   of the matrix is a separate time series.
 
-[nSeries, scaling] = parseInputs(Data, varargin(:));
+[nSeries, scaling] = parseInputs(Data, varargin{:});
 
 % If data is a row vector, make into a column vector
 if isrow(Data)
@@ -54,7 +54,7 @@ elseif strcmpi(noiseType, 'red')
     randSeries = NaN(lts, nSeries);
     
     % Get the lag-1 autocorrelations
-    ar1 = diag(  corr( Data(1:end-1,:), Data(2:end,:) )  );
+    ar1 = diag(  corr( Data(1:end-1,:), Data(2:end,:) )  )';
     
     % Initialize the first row
     randSeries(1,:) = randn(1,nSeries);
