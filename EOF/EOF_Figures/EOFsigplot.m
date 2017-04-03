@@ -24,7 +24,7 @@ plot( EOF.randEigvals( EOF.thresh,:), 'r-')
 stem( EOF.expVar);
 
 title('Significant Eigenvalues');
-legend( sprintf('Minimum Significance Threshold, p = %1.2f', EOF.pval), 'Eigenvalue Explained Variance');
+legend( sprintf('Minimum Significance Level, p = %1.2f', 1-EOF.conf), 'Eigenvalue Explained Variance');
 xlabel('Eigenvalue Rank');
 ylabel('Explained Variance');
 xs = get(gca, 'XLim');

@@ -83,7 +83,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %   thresh: The index of the threshold row in randEigvals that the data 
 %       eigenvalues must exceed in order to pass the significance test.
 %
-%   conf: The desired confidence level of the significance test.
+%   conf: The confidence level for the significance tests. 
 %
 %   trueConf: The true confidence level of the threshold row.
 %
@@ -158,7 +158,7 @@ if ~blockMC
 end
 
 % Add metadata
-s.pval = pval;
+s.conf = 1-pval;
 s.metadata = [{'matrix';'MC';'noiseType';'svdArgs';'sigTest';'convergeTest'},...
     {matrix; MC; noiseType; svdArgs; ~blockMC; convergeTest}];
 end
