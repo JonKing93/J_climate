@@ -11,15 +11,15 @@ function[] = EOFloadings(EOF, names, rotType)
 %   'rotated': Use the rotated modes
 %   'unrotated': Use the unrotated modes
 
-if EOF.numSig > 0
+if EOF.nSig > 0
     
     % Choose between rotated or unrotated modes
     if strcmpi( rotType, 'rot') || strcmpi(rotType, 'rotated')
-        loadings = EOF.rotatedModes;
+        loadings = EOF.rotModes;
         rotString = 'Rotated';
         
     elseif strcmpi(rotType,'unrot') || strcmpi(rotType, 'unrotated') || isempty(rotType)
-        loadings = EOF.eigVecs;
+        loadings = EOF.modes;
         rotString = 'Unrotated';
         
     else
@@ -27,7 +27,7 @@ if EOF.numSig > 0
     end
     
     % For each significant loading
-    for k = 1:EOF.numSig
+    for k = 1:EOF.nSig
         figure(); clf; hold on;
         
         % Sort the loadings in ascending order

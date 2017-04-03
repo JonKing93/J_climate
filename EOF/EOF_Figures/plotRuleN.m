@@ -13,7 +13,7 @@ title('True confidence level of iteratively selected significant eigenvalues.')
 
 % Plot the significant eigenvalues for each iteration
 figure()
-plot(zscore(s.iterConfEigs));
+plot(zscore(s.iterSigEigs));
 title('Standardized Significance Threshold for Random Eigenvalues');
 xlabel('Number of Monte Carlo Iterations');
 ylabel('Standardized Significance');
