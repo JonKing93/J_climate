@@ -145,7 +145,7 @@ if ~blockMC
 
         % Rotate the scaled eigenvectors
         [s.rotModes, s.rotEigvals, s.rotExpVar, s.rotMatrix] = ...
-            varimaxRotation( s.scaModes(:,1:s.nSig));
+            varimaxRotation( s.scaModes(:,1:s.nSig), s.eigVals(1:s.nSig), s.expVar(1:s.nSig) );
 
         % Get the rotated signals
         s.rotSignals = getSignals(s.Datax0, s.rotModes);
