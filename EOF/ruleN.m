@@ -1,82 +1,107 @@
-function[lastSigNum, randEigSort, normEigvals, thresh, realConf] = ...
-    ruleN(Data, eigVals, MC, noiseType, confidence, covcorr, varargin)
-%% Runs a Rule N significance test on a data matrix and its eigenvalues / PC loadings.
+function[nSig, randEigSort, thresh, trueConf, varargout] = ...
+    ruleN(Data, matrix, normEigvals, MC, noiseType, pval, varargin)
+%% Runs a Rule N significance test on a data matrix and its eigenvalues.
 %
-% [lastSigNum, randEigSort, normEigvals, thresh, realConf] = ...
-%    ruleN(Data, eigVals, MC, noiseType, confidence, covcorr, analysisSpecs)
+% [nSig, randEigSort, thresh, trueConf, iterTrueConf, iterSigEigs] = ...
+%    ruleN(Data, matrix, eigVals, MC, noiseType, pval)
+% Runs a Rule N significance test on a dataset and saves Monte Carlo
+% convergence data.
 %
+% [...] = ruleN(..., showProgress)
+% Choose whether to display the current Monte Carlo iteration against the total number of
+% simulations.
+%
+% [nSig, randEigSort, thresh, trueConf] = ruleN(..., convergeTest)
+% Choose whether to include or block the recording of the Monte Carlo 
+% iteration convergence. Blocking may speed runtime for large analyses, but
+% causes a loss of information.
+%
+% [...] = ruleN(..., 'svds', 'econ')
+% Uses the economy sized svds decomposition during Rule N.
+%
+% [...] = ruleN(..., 'svd', nModes')
+% Uses the svds decomposition to get eigenvalues for the first nModes
+% modes.
+%
+% 
 % ----- Inputs -----
 %
 % Data: A 2D data matrix. Each column corresponds to a series of
 %   observations.
 %
-% normVals: The eigenvalues of Data
+% matrix: The desired analysis matrix.
+%       'cov': Covariance matrix -- Minimizes variance along EOFs
+%       'corr': Correlation matrix -- Minimizes relative variance along
+%               EOFs. Often useful for data series with significantly
+%               different magnitudes.
+%       'none': Perform svd directly on data matrix.
 %
-% MC: The Monte Carlo number of iterations
+% normEigvals: The normalized eigenvalues of the analysis matrix. Generally
+%       equivalent to the explained variance of EOF modes.
+%
+% MC: The number of Monte Carlo iterations to perform
 %
 % noiseType: 
 %   'white':    white noise
-%   'red':      lag-1 red noise with added white noise
+%   'red':      lag-1 autocorrelated red noise with Gaussian white noise.
 %
-% confidence: Desired confidence interval for ruleN to pass. Must be on the
-%       interval (0 1)
+% pval: The significance level desired for the test to pass. Must be on the
+%       interval (0 1).
 %
-% covcorr: The desired analysis matrix.
-%       'cov': Covariance matrix
-%       'corr': Correlation matrix
-%       'none': Perform svd directly on data matrix. (The analysis will 
-%               detrend but not zscore the data)
+% showProgress: A flag for displaying the current Monte Carlo iteration number
+%       'showProgress' -- Displays the current Monte Carlo iteration number
+%       'noProgress' (Default) -- Does not display the current Monte Carlo number
 %
-% *** Optional Inputs ***
+% convergeTest: A flag to save or ignore Monte Carlo convergence information
+%       'testConverge' (Default) -- Saves the Monte Carlo convergence data
+%       'noConvergeTest' -- Does not save Monte Carlo convergence data
 %
-% analysisSpecs:
-%
-%   Decomposition type: svd or svds (these may have differing runtimes)
-%           'svd': (default) Uses the svd function for decomposition
-%           'svds': Uses the svds function for decomposition
-%             
-%   Decomposition size: The number of eigenvectors found (may affect runtime)
-%           'all': (default)Performs the full decomposition
-%           'econ': Performs the economy size decomposition
-%           neigs: An integer specifying the number of leading eigenvectors to find                
-%
-%
+%            
 % ----- Outputs -----
 %
 % lastSigNum: The number of eigenvalues that pass rule N
 %
 % randEigSort: The matrix of random, normalized, sorted eigenvalues
-%
-% normEigvals: The normalized data eigenvalues
 % 
-% thresh: The integer threshold that eigenvalues were required to pass
+% thresh: The index of the threshold row in randEigSort of which data
+%       eigenvalues must exceed to remain significant.
 %
-% realConf: The true confidence interval of this threshold
-% 
+% trueConf: The true confidence level of this threshold
 %
-% ----- Background Reading -----
+% iterSigEigs: The set of random eigenvalues that data eigenvalues must
+%       exceed to remain significant after each additional Monte Carlo iteration.
 %
-% Principal Component Analysis in Metereology and Oceanography. Rudolph
-% Preisendorfer. Elsevier Science Publishers. New York, 1988.
-%
+% iterTrueConf: The true significance level of the threshold eigenvalues
+%       after each additional Monte Carlo iteration.
 
-[ar1, normEigvals] = setup(Data, eigVals, noiseType, confidence, MC);
+% Inputs and error checking
+[showProgress, testConverge, svdArgs] = parseInputs(varargin{:});
+errCheck(Data, normEigvals, MC, pval)
 
-% Get the data size
-[m, n] = size(Data);
-
-% Run rule N
+% Preallocate output
+[~, n] = size(Data);
 randEigvals = NaN(MC,n);
+if testConverge
+    iterSigEigs = NaN(MC, n);
+    iterTrueConf = NaN(MC, 1);
+else
+    iterSigEigs = [];
+    iterTrueConf = [];
+end
+
+% Run Rule N...
 for k = 1:MC
     
-    % Create a random matrix
-    g = buildMatrix(noiseType,m,n,ar1);
+    % Display progress if desired
+    if showProgress
+        fprintf('Running Monte Carlo simulation: %i / %i\r\n', k, MC);
+    end
     
-    % Scale to the standard deviation of the original matrix
-    g = g * sqrt( diag( var( Data)));
+    % Create a random matrix with the desired noise properties, scaled to data standard deviation.
+    g = randNoiseSeries(noiseType, Data);
     
     % Run an EOF analysis on the random matrix
-    [randEig, ~] = simpleEOF(g, covcorr);
+    [randEig, ~] = simpleEOF(g, matrix, svdArgs);
     
     % Normalize the eigenvalues
     randEig = randEig ./ sum(randEig);
@@ -84,19 +109,40 @@ for k = 1:MC
     % Store the random eigenvalues
     randEigvals(k,:) = randEig;
     
+    % If testing Monte Carlo convergence...
+    if testConverge
+        % Sort the current set of random eigenvalues
+        randEigvals = sort(randEigvals);
+        
+        % Calculate the current confidence level threshold
+        thresh = ceil(k * (1-pval));
+        iterTrueConf(k) = thresh / k;
+        
+        % Get the set of values on the confidence interval
+        iterSigEigs(k,:) = randEigvals(thresh,:);
+    end
+    
 end
 
-% Sort the eigenvalues
-randEigSort = sort(randEigvals);
+% Sort the eigenvalues when there is no convergence test
+if ~testConverge
+    randEigSort = sort(randEigvals);
+else
+    randEigSort = randEigvals;
+    varargout = cell(2,1);
+    varargout{1} = iterSigEigs;
+    varargout{2} = iterTrueConf;
+end
 
-% Calculate the confidence level threshold
-thresh = ceil( MC * confidence);
-realConf = thresh / MC;
+
+% Calculate the confidence level threshold and its true confidence level
+thresh = ceil( MC * (1-pval) );
+trueConf = thresh / MC;
 
 % Find the significant values
 for k = 1:n
     if normEigvals(k) <= randEigSort(thresh, k)
-        lastSigNum = k-1;
+        nSig = k-1;
         break;
     end
 end
@@ -104,66 +150,61 @@ end
 end
 
 %%%%% Helper Functions %%%%%
-function[g] = buildMatrix(noiseType, m, n, ar1)
-%% Builds the matrix g as appropriate for red or white noise
-switch noiseType
+function[showProgress, testConvergence, svdArgs] = parseInputs(varargin)
+inArgs = varargin;
+
+% Set defaults
+showProgress = false;
+testConvergence = true;
+svdArgs = {'svd'};
+
+% Get input values
+if ~isempty(inArgs)
+    isSvdsArg = false;
     
-    % Random matrix for white noise
-    case 'white'
-        % Create a random matrix
-        g = randn(m,n);
-    
-    % Add lag-1 autocorrelation for red noise
-    case 'red'
-        % Preallocate 
-        g = NaN(m,n);
+    % Get each input
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
         
-        % Create random first row
-        g(1,:) = randn(1,n);
         
-        % Calculate autocorrelation through matrix. Add random noise
-        for j = 1:m-1
-            g(j+1,:) = (ar1' .* g(j,:)) + randn(1,n);
+        if isSvdsArg
+            if isscalar(arg) || strcmpi(arg,'econ')
+                svdArgs = {'svds', arg};
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        elseif strcmpi(arg, 'showProgress')
+            showProgress = true;
+        elseif strcmpi(arg, 'blockProgress')
+            % Do nothing
+        elseif strcmpi(arg, 'noConvergeTest')
+            testConvergence = false;
+        elseif strcmpi(arg, 'testConverge')
+            % Do nothing
+        elseif strcmpi(arg, 'svd')
+            % Do nothing
+        elseif strcmpi(arg, 'svds')
+            if length(inArgs) >= k+1
+                isSvdsArg = true;
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        else
+            error('Unrecognized Input');
         end
-        
-        % Standardize so later scaling is correct
-        g = zscore(g);   
+    end
 end
 end
 
-function[ar1, normEigvals] = setup(Data, eigVals, noiseType, confidence, MC)
-
-% Ensure Data is 2D
-if ~ismatrix(Data)
-    error('RuleN is for 2D Data matrices');
-end
-
-% Get noise type
-if ~( strcmp(noiseType,'red') || strcmp(noiseType, 'white') )
-    error('Unrecognized noise type');
-end
-
-% Precalculate ar1 if required
-if strcmp(noiseType, 'red')
-    r = corr( Data(1:end-1,:), Data(2:end,:) );
-    ar1 = diag(r);
-else
-    ar1 = NaN;
-end    
-
-% Normalize Eigenvalues
-normEigvals = eigVals ./ sum(eigVals);
-
-% Ensure confidence interval is on (0 1)
-if confidence <=0 || confidence >=1
-    error('confidence must be on the interval (0,1)');
-end
-
-% Ensure the Monte Carlo number is positive
-if MC < 1
+function[] = errCheck(Data, eigVals, MC, pval)
+if hasNaN(Data)
+    error('Data cannot contain NaN');
+elseif hasNaN(eigVals)
+    error('eigVals cannot contain NaN');
+elseif MC < 1
     error('The Monte Carlo number must be a positive integer');
+elseif pval<=0 || pval>=1
+    error('The p values must be on the interval (0,1)');
 end
-
-
 end
     

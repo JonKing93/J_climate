@@ -4,132 +4,94 @@ function[eigvals, eigvecs] = quickSVD(C, varargin)
 % [eigvals, eigvecs] = quickSVD(C)
 %   performs a full SVD on a matrix or set of matrices.
 %
-% [eigvals, eigvecs] = quickSVD(C, svdType, svdSize)
-% allows the user to choose between svd and svds decompositions, and select
-% the size of each type of decomposition.
+% [...] = quickSVD(C, 'svds', 'econ')
+% Uses an economy sized svds decomposition rather than the full svd.
+%
+% [...] = quickSVD(C, 'svds', nEigs)
+% Uses the svds decomposition and determines the first nEigs eigenvalues.
+%
+% [...] = quickSVD(C, 'svd')
+% Performs the normal svd.
 %
 % ----- Inputs -----
 %
-% C: A matrix or 3D stack of matrices. If C is a 3D stack of matrices, an
-%       svd will be performed on each dim1 x dim2 matrix.
+% C: A matrix. May not contain NaN.
 %
-% *** Optional Inputs ***
-%
-% svdType: A flag for the type of decomposition
-%       'svd': (Default) Uses the svd decomposition
-%       'svds': Uses the function for the svds decomposition.
-%
-% svdSize: Specify the number of singular values found.
-%       For svd: 'all': (Default) Performs the full decomposition
-%                'econ': Performs the economy sized decomposition
-%                nEigs: an integer specifying the number of singular values
-%                       to find (not recommended for svd)
-%
-%       For svds: 'econ': (Default) Performs the economy sized decomposition
-%                 nEigs: An integer specifying the number of singular values to find
 %
 % ----- Outputs -----
 %
-% eigvals: A 2D matrix of eigenvalues. Each column corresponds to the
-%       values for a particular dim1 x dim2 matrix in C.
+% eigvals: A vector containing the eigenvalues of C.
 %
-% eigvecs: A 3D matrix of eigenvectors. Each dim1 x dim2 matrix corresponds
-%       to a particular matrix in C.
-%
-% ---
-% Jonathan King, 2017
+% eigvecs: A matrix containing the eigenvectors of C. Each column is one
+%       eigenvector.
 
-% Error check, parse inputs, get number of matrices
-[numMat, decompType, decompArg] = setup(C, varargin{:});
+% Parse Inputs
+[svdFunc, svdsArg] = parseInputs( varargin{:});
+
+% Error check
+errCheck(C);
 
 % Run the SVD on each matrix
-for k = 1:numMat
-    
-    switch decompType
-        case 'svd'
-            if strcmp(decompArg,'all')
-                [~,S,V] = svd(C(:,:,k));           
-            else
-                [~,S,V] = svd(C(:,:,k), 0);
-            end
-            
-        case 'svds'
-            if isscalar(decompArg)
-                [~,S,V] = svds(C(:,:,k), decompArg);
-            else
-                [~,S,V] = svds(C(:,:,k));
-            end 
-    end
-   
-    % Preallocate if this is the first run
-    if k==1
-        eigvals = NaN( length(diag(S)), numMat);
-        eigvecs = NaN( [size(V), numMat]);
-    end
-                  
-    % Pull the eigenvalues off of the diagonal
-    eigvals(:,k) = diag(S);
-    
-    % Set the eigenvectors so that the majority of loadings are positive
-    eigvecs(:,:,k) = posColSign(V);
-        
+switch svdFunc
+    case 'svd'
+        [~,S,V] = svd(C);
+
+    case 'svds'
+        [~,S,V] = svds(C, svdsArg); 
 end
+
+% Pull the eigenvalues off of the diagonal
+eigvals = diag(S);
+
+% Set the eigenvectors so that the majority of elements are positive
+eigvecs = posColSign(V);
+        
 end
     
     
 %%%%% Helper Functions %%%%%
+function[svdFunc, svdsArg] = parseInputs( varargin)
+inArgs = varargin;
 
-function[nMat, svdType, nEigs] = setup(C,varargin)
-%% Error checking and determination of input specifications
+% Set the defaults
+svdFunc = 'svd';
+svdsArg = NaN;
 
-% Ensure C is 3D 
-if ndims(C) > 3
-    error('quickSVD is for 3D matrices only');
-end
-
-% Ensure no NaNs are in C
-if NaNcheck(C)
-    error('C may not contain NaN entries');
-end
-
-% Get the number of matrix stacks
-nMat = size(C,3);
-
-% Set defaults
-svdType = 'svd';
-nEigs = 'all';
-
-% Check the additional specifications
-if ~isempty(varargin)
-    if length(varargin) > 2
-        error('Too many inputs');
-    else
-        % SVD type
-        if strcmp( varargin{1}, 'svd')
-            % Do nothing, this is the default
-        elseif strcmp( varargin{1}, 'svds')
-            svdType = 'svds';
-            nEigs = 'econ';
-        else
-            error('Unrecognized svd type');
-        end
-        % nEigs
-        if length(varargin) == 1
+if ~isempty(inArgs)
+    isSvdsArg = false;
+    
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+       
+        if isSvdsArg
+            if isscalar(arg) || strcmpi(arg,'econ')
+                svdFunc = 'svds';
+                svdsArg = arg;
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        elseif strcmpi(arg,'svd')
             % Do nothing
-        elseif strcmpi( varargin{2}, 'all') && strcmp(svdType, 'svd')
-            % Do nothing
-        elseif strcmpi( varargin{2}, 'econ')
-            nEigs = 'econ';
-        elseif isscalar(varargin{2}) && strcmp(svdType, 'svd')
-            error('Use the svds switch to find a specific number of singular values');
-        elseif strcmpi(varargin{2}, 'all')
-            error('Use the svd switch to perform a full decomposition');
-        elseif isscalar(varargin{2})
-            nEigs = varargin{2};
+        elseif strcmpi(arg, 'svds') 
+            if length(inArgs)>=k+1
+                isSvdsArg = true;
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end            
         else
-            error('Unrecognized input');
-        end
-    end
+            error('Unrecognized Input');
+       end
+   end
+end
+end
+          
+function[] = errCheck(C)
+% C is a matrix
+if ~ismatrix(C)
+    error('C must be a matrix');
+% No NaN
+elseif hasNaN(C)
+    error('C may not contain NaN');
+end
 end
 
-end

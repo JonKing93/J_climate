@@ -243,7 +243,7 @@ end
 if ~isvector(pvals)
     error('pvals must be a vector');    
 % Ensure the values are between 0 and 1
-elseif any(pvals)<=0 || any(pvals)>=1
+elseif any(pvals<=0) || any(pvals>=1)
     error('P values must be on the interval (0,1)');
 end
 

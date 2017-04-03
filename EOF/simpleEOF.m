@@ -1,149 +1,117 @@
-function[eigVals, eigVecs, Datax0, C] = simpleEOF(Data, varargin)
-%% Gets the PCs (EOFs) of a data matrix
+function[eigVals, modes, expVar, Datax0, C] = simpleEOF(Data, matrix, varargin)
+%% Gets the EOF modes and loadings of a data matrix.
+% 
+% [eigVals, modes, expVar, Datax0, C] = simpleEOF(Data, matrix)
 %
-% [eigVals, eigVecs, Datax0, C] = simplePCA(Data, analysisSpecs)      
+% [...] = simpleEOF(Data, matrix, 'svds', 'econ')
+% Uses an economy sized svds decomposition rather than the full svd.
+%
+% [...] = simpleEOF(Data, matrix, 'svds', nEigs)
+% Uses the svds decomposition and determines the first nEigs eigenvalues.
+%
+% [...] = simpleEOF(Data, matrix, 'svd')
+% Performs the normal svd.
+%
 %
 % ----- Inputs -----
 % 
 % Data: A 2D data matrix. Each column corresponds to a particular time
 %   series. Data cannot contain NaN entries.
 %
-% *** Optional Inputs ***
-%
-% analysisSpecs: Additional specifications for the covariance / correlation
-%       matrices, and the svd decomposition
-%
-%   Covariance / Correlation Matrices:
-%           'cov': (default) Uses the covariance matrix
-%           'corr': Uses the correlation matrix
-%           'none': Will perform svd directly on data matrix. (The analysis will 
-%                   detrend but not zscore the data)
-%        
-%   Decomposition type: svd or svds (these may have differing runtimes)
-%           'svd': (default) Uses the svd function for decomposition
-%           'svds': Uses the svds function for decomposition
-%             
-%   Decomposition size: The number of eigenvectors found (may affect runtime)
-%           'all': (default)Performs the full decomposition
-%           'econ': Performs the economy size decomposition
-%           neigs: An integer specifying the number of leading eigenvectors to find                
+% matrix: The desired analysis matrix.
+%       'cov': Covariance matrix -- Minimizes variance along EOFs
+%       'corr': Correlation matrix -- Minimizes relative variance along
+%               EOFs. Useful for data series with significantly
+%               different magnitudes.
 %
 %
 % ----- Outputs -----
 %
-% eigVals: a vector of the desired eigenvalues sorted from most to least 
-%     significant.
+% eigVals: The eigenvalues of the analysis matrix. These determine the
+%       significance of each mode.
 %
-% eigVecs: The eigenvectors of the corr/cov matrix
+% modes: The EOF modes. These are the eigenvectors of the analysis 
+%       matrix. Each column is one mode.
 %
-% Datax0: Standardized data
-%    mean = 0 if the covariance matrix is used
-%    variance = 1, mean = 0 if the correlation matrix is used
+% expVar: The amount of data variance explained by each mode. Equivalent to
+%       the normalized eigenvalues.
 %
-% C: The analysis matrix for the PCA. This may be the stadardized data
-%   matrix, its covariance matrix, or its correlation matrix, as appropriate.
+% Datax0: The standardized or detrended data matrix
 %
-% ----- Suggested Readings -----
-% 
-% IN PROGRESS...
-%
-%
+% C: The analysis matrix for the PCA. This may be the standardized data
+%       matrix, its covariance matrix, or its correlation matrix, as appropriate.
 
-% Error check, determine analysis specifications
-[covcorr, svdFunc, decompArg] = setup(Data, varargin{:});
+% Get the inputs
+[svdArgs] = parseInputs(varargin{:});
+
+% Error check
+errCheck(Data, matrix);
 
 % Standardize Data
-Datax0 = standardizeData(Data,covcorr);
+if strcmp(matrix, 'corr')
+    Datax0 = zscore(Data);
+else    % matrix = 'cov'
+    Datax0 = detrend(Data, 'constant');
+end
 
-% Get covariance OR correlation matrix OR leave data as is
-C = getAnalysisMatrix( Datax0, covcorr);
+% Get the analysis matrix for decomposition.
+C = cov(Datax0);
 
 % Run SVD(S)
-[eigVals, eigVecs] = quickSVD(C, svdFunc, decompArg);
+[eigVals, modes] = quickSVD(C, svdArgs{:});
 
-% Calculate eigenvalues if SVD is performed directly on data
-if strcmp(covcorr, 'none')
-    eigVals = (eigVals.^2) / (length(eigVals) - 1);
-end
+% Get the expalined variance = normalized eigenvalues
+expVar = eigVals / sum(var(Datax0));
 
 end
 
 
 %%%%% Helper Functions %%%%%
-function[covcorr, svdFunc, decompArg] = setup(Data, varargin)
-%% Setup function for simple PCA
+function[svdArgs] = parseInputs(varargin)
+inArgs = varargin;
 
+% Set the default
+svdArgs = {'svd'};
+
+if ~isempty( inArgs)
+    svdsArg = false;
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+        
+        if svdsArg
+            if isscalar(arg) || strcmpi(arg, 'econ')
+                svdArgs = {'svds',arg};
+            else
+                error('The svds flag must be followed by a positive integer or the ''econ'' flag');
+            end        
+        elseif strcmpi(arg, 'svd')
+            % Do nothing
+        elseif strcmpi(arg, 'svds')
+            if length(inArgs) >= k+1
+                svdsArg = true;
+            else
+                error('The svds flag must be followed by a positive integer or the ''econ'' flag');
+            end
+        else
+            error('Unrecognized Input');
+        end
+    end
+end
+end
+
+function[] = errCheck(Data, matrix)
 %% Ensure data matrix is 2D    
 if ~ismatrix(Data)
     error('Data must be a 2D matrix');
 end
 
 % Ensure data does not contain NaNs
-if NaNcheck(Data)
+if hasNaN(Data)
     error('Data cannot contain NaNs');
 end
 
-% Set defaults
-covcorr = 'cov';
-svdFunc = 'svd';
-decompArg = 'all';
-
-% Return if no additional specifications
-if isempty(varargin)
-    return;
-end
-
-%% Determine what to do with different analysis specifications
-for k = 1:length(varargin)
-    spec = varargin{:};  
-    
-    if strcmp( spec, 'cov') % Use covariance for cov string
-        covcorr = 'cov';
-    
-    elseif strcmp( spec, 'corr') % Use correlation for corr string
-        covcorr = 'corr';
-        
-    elseif strcmp( spec, 'none') % Use no cov / corr matrix
-        covcorr = 'none';
-        
-    elseif strcmp( spec, 'svd' ) % Use svd
-        svdFunc = 'svd';
-        
-    elseif strcmp( spec, 'svds' ) % Use svds
-        svdFunc = 'svds';
-        
-    elseif strcmp( spec, 'all' ) % Full svd
-        decompArg = 'all';
-        
-    elseif strcmp( spec, 'econ' ) % Economy svd
-        decompArg = 'econ';
-        
-    elseif isscalar(spec)    % Specific number of eigs
-        decompArg = spec;
-        
-    else % Error for anything else
-        error('Unrecognized Input');
-    end    
-end
-
-end
-
-function[Datax0] = standardizeData(Data, covcorr)
-% Standardizes the data as appropriate
-if strcmp(covcorr, 'corr')
-    Datax0 = zscore(Data);
-else
-    Datax0 = detrend(Data, 'constant');
-end
-end
-
-function[C] = getAnalysisMatrix( Datax0, covcorr)
-if strcmp(covcorr, 'cov')
-    C = cov(Datax0);
-    
-elseif  strcmp(covcorr,'corr')
-    C = corr(Datax0);
-else
-    C = Datax0;
+% Matrix is recognized
+if ~any( strcmpi(matrix, {'corr','cov'}) )
+    error('Unrecognized matrix');
 end
 end

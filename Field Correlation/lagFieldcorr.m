@@ -122,6 +122,7 @@ isSig = NaN( nPvals, nLags);
 %% Run a field correlation for each lag and lead
 
 for k = 1:nLags
+    k
     
     % Lag the time series...
     if lagTS
@@ -167,7 +168,7 @@ if strcmpi( varargin{1}, 'noSpatial')
     inArgs = varargin(1);
     iArg = 2;
 else
-    inArgs = varargin(2);
+    inArgs = varargin(1:2);
     iArg = 3;
 end
 

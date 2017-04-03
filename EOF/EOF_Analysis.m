@@ -1,190 +1,207 @@
-function[s] = EOF_Analysis(Data, covcorr, MC, noiseType, confidence, varargin)
-%% Performs a full EOF / PC Analysis of a data set.
-% Finds the PC modes, explained variances, signals, and signals scaled to
-% the standardized dataset. Performs a ruleN significance test on the modes
-% and rotates the significant modes according to VARIMAX criterion.
+function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
+%% Performs a full EOF Analysis of a data set.
+% 
+% [s] = EOF_Analysis(Data, matrix, MC, noiseType, pval)
+% Finds the EOF modes, explained variances, signals, and signals scaled to
+% the standardized dataset. Performs a Rule N significance test on the modes
+% and rotates the significant modes according to VARIMAX criterion. Returns
+% all calculated values in a structure, s.
 %
-% [s] = PCA_Analysis(Data, covcorr, MC, noiseType, confidence, analysisSpecs)
+% [s] = EOF_Analysis(..., 'showProgress')
+% Displays the current Monte Carlo iteration onscreen.
+%
+% [s] = EOF_Analysis(..., 'svds', 'econ')
+% Performs the economy sized svds decomposition rather than the default
+% svd.
+%
+% [s] = EOF_Analysis(..., 'svds', nModes)
+% Uses the svds decomposition and determines the first nModes modes.
+%
+% [s] = EOF_Analysis(..., 'noSigTest')
+% A flag to block the Rule N significance testing. The returned structure
+% will not contain any fields requiring the significance test.
+%
+% [s] = EOF_Analysis(..., 'noConvergeTest')
+% A flag to block the test for Monte Carlo convergence. The returned
+% structure will contain neither the iterSigLevel nor iterTrueSig fields.
+%
 %
 % ----- Inputs -----
 %
-% Data: A 2D data matrix. Each column corresponds to a particular time
-%   series. Data cannot contain NaN entries.
+% Data: A 2D data matrix. Each column corresponds to a particular data
+%       series. Data may only contain numeric entries.
 %
-% covcorr: The desired analysis matrix.
-%       'cov': Covariance matrix
-%       'corr': Correlation matrix
-%       'none': Perform svd directly on data matrix. (The analysis will 
-%               detrend but not zscore the data)
+% matrix: The desired analysis matrix.
+%       'cov': Covariance matrix -- Minimizes variance along EOFs
+%       'corr': Correlation matrix -- Minimizes relative variance along
+%               EOFs. Often useful for data series with significantly
+%               different magnitudes.
+%       'none': Perform svd directly on data matrix.
 %  
-% MC: The number of Monte Carlo iterations used in the ruleN significance
+% MC: The number of Monte Carlo iterations used in the Rule N significance
 %       test
 %
-% noiseType: The noise used in the ruleN significance test
+% noiseType: The noise used in the Rule N significance test
 %       'white': white Gaussian noise
 %       'red': lag-1 autocorrelated noise with added white noise
 %
-% confidence: The desired confidence interval. All modes passing the
-%       confidence interval will be added to the VARIMAX rotation.
-%
-% *** Optional Inputs ***
-%
-% analysisSpecs:
-%
-%   Decomposition type: svd or svds (these may have differing runtimes)
-%           'svd': (default) Uses the svd function for decomposition
-%           'svds': Uses the svds function for decomposition
-%             
-%   Decomposition size: The number of eigenvectors found (may affect runtime)
-%           'all': (default)Performs the full decomposition
-%           'econ': Performs the economy size decomposition
-%           neigs: An integer specifying the number of leading eigenvectors to find                
+% pval: The significance level that the significance test should pass.      
 %
 %
 % ----- Outputs -----
 %
 % s: A structure containing the following fields
 %
-%   Datax0: The standardized data matrix
+%   Datax0: The standardized or detrended data matrix
 %
-%   C: The analysis matrix. This will be either the original data matrix or
-%       its correlation or covariance matrix
+%   C: The analysis matrix. The covariance or correlation matrix of Datax0,
+%       or the original dataset.
 %
-%   eigVecs: The eigenvectors of the analysis matrix. These are the PCA
-%       modes. Each column contains one mode.
+%   eigVals: A vector with the eigenvalues of the analysis matrix. Each 
+%       eigenvalue corresponds to an EOF mode. The larger the eigenvalue
+%       magnitude, the more data variance explained by the mode.
 %
-%   eigVals: The eigenvalues of the analysis matrix. These are the loadings
-%       of the PCA modes.
+%   modes: The EOF modes. These are the eigenvectors of the analysis 
+%       matrix, also known as loadings. Each column is one mode.
 %
-%   expVar: The explained variance of each PCA mode.
+%   expVar: The data variance explained by each mode. Equivalent to the
+%       normalized eigenvalues.
 %
-%   signals: The signals arising from each PCA mode. Each column is a
-%       signal.
+%   signals: The signal for each EOF mode. Signals are the imprint of each
+%       mode on the original data series, also known as scores or EOF 
+%       time series. Each column is one signal.
 %
-%   scaledSignals: The signals scaled to the standardized data matrix.
+%   scaSignals: The signals scaled to the standardized data matrix. Allows
+%       for quick comparison of signals with the standardized data series.
 %
-%   numSig: The number of PCA modes that pass the ruleN significance test.
+%   nSig: The number of modes that pass the Rule N significance test. 
 %
 %   randEigvals: The set of random, normalized eigenvalues generated during
-%   the ruleN significance test. Each row contains the set of eigenvalues
-%   at a particular confidence interval.
+%       the Rule N significance test. Each row contains the eigenvalues
+%       at a particular confidence interval.
 %
-%   normEigvals: The normalized data eigenvalues
+%   thresh: The index of the threshold row in randEigvals that the data 
+%       eigenvalues must exceed in order to pass the significance test.
 %
-%   thresh: The index of the threshold row in randEigvals that data
-%       eigenvalues must exceed to pass the ruleN significance test.
+%   conf: The confidence level for the significance tests. 
 %
 %   trueConf: The true confidence level of the threshold row.
 %
-%   scaledVecs: The significant eigenvectors scaled by the square root of
-%       the eigenvalues. These are the values used for the VARIMAX
-%       rotation.
+%   iterTrueConf: The true confidence level of the threshold row after
+%       each iteration of the Monte Carlo simulations.
 %
-%   rotatedModes: The VARIMAX rotated PCA modes.
+%   iterSigEigs: The set of eigenvalues that the data values must exceed
+%       for significance after each successive Monte Carlo iteration.
 %
-%   rotatedEigvals: The eigenvalues / loadings for the rotated modes.
+%   scaModes: The scaled modes used for VARIMAX rotation. Modes are scaled 
+%       by the square root of the loadings.
 %
-%   rotatedExpVar: The explained variance of the rotated eigenvalues.
+%   rotModes: The VARIMAX rotated modes.
 %
-%   rotationMatrix: The rotation matrix used to create the rotated modes.
+%   rotEigvals: The eigenvalues for the rotated modes.
 %
-%   rotatedSignals: The signals corresponding to the rotated modes
+%   rotExpVar: The variance explained by the rotated loadings.
 %
-%   scaledRotSignals: The scaled signals from the rotated modes.
+%   rotSignals: The signals corresponding to the rotated modes.
+%
+%   scaRotSignals: The scaled signal for each rotated mode.
+%
+%   rotMatrix: The rotation matrix used to rotate the significant modes.
+%
+%   metadata: Information concerning the settings used for the analysis.
+%       Contains: matrix, MC, noisetype, pval, and any additional flags.
 
-
-% Initial error checks
-if nargin == 1
-    extraCheck(Data)
-    return;
-end
-[notFullSvd] = setup(covcorr, varargin{:});
+% Parse Inputs, all error checking will occur in called functions
+[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin{:});
 
 % Declare the intial structure
 s = struct();
 
-% Run the PCA on the Data
-[s.eigVals, s.eigVecs, s.Datax0, s.C] = simpleEOF(Data, covcorr, varargin{:});
+% Run the initial EOF on the Data
+[s.eigVals, s.modes, s.expVar, s.Datax0, s.C] = simpleEOF(Data, matrix, svdArgs{:});
 
 % Get the signals
-s.signals = getSignals(s.Datax0, s.eigVecs);
+s.signals = getSignals(s.Datax0, s.modes);
 
-% Get the scaled signals
+% Scale the signals to the standardized data
 s.scaledSignals = scaleSignals(s.signals, s.eigVals);
 
-% Get the explained variance
-if notFullSvd   % Use the data variance if svd was incomplete
-    s.expVar = explainedVar(s.eigVals, s.Datax0);
-else
-    s.expVar = explainedVar(s.eigVals);
-end    
+% Rule N, and rotation require significance testing to continue
+if ~blockMC
 
-% Run the ruleN significance test
-[s.numSig, s.randEigvals, s.normEigvals, s.thresh, s.conf] = ...
-    ruleN(Data, s.eigVals, MC, noiseType, confidence, covcorr, varargin{:});
+    % Run Rule N, with or without convergence testing.
+    if convergeTest  % with convergence testing
+        [s.nSig, s.randEigvals, s.thresh, s.trueConf, s.iterSigEigs, s.iterTrueConf] = ...
+                ruleN(Data, matrix, s.expVar, MC, noiseType, pval, svdArgs, showProgress);
+    else    % No convergence testing
+        [s.nSig, s.randEigvals, s.thresh, s.trueConf] = ...
+            ruleN(Data, matrix, s.expVar, MC, noiseType, pval, svdArgs, showProgress, 'noConvergeTest');
+    end
+    
+    % Perform a Varimax rotation of significant modes.
+    if s.nSig < 2   
+    % Less than 2 significant modes, cannot rotate, do nothing
+    else 
+        % Scale the eigenvectors
+        s.scaModes = scaleModes( s.modes(:,1:s.nSig), s.eigVals(1:s.nSig));
 
-% Rotate the significant vectors (if more than 1 are significant)
-if s.numSig < 2   % Less than 2 are significant, set rotation output to NaN
-    s.scaledVecs = NaN;
-    s.rotatedModes = NaN;
-    s.rotationMatrix = NaN;
-    s.rotatedEigvals = NaN;
-    s.rotatedSignals = NaN;
-    s.scaledRotSignals = NaN;
-    
-else % There are significant modes, rotate them...
-    
-    % Scale the eigenvectors
-    s.scaledVecs = scaleEigvecs( s.eigVecs(:,1:s.numSig), s.eigVals(1:s.numSig));
-    
-    % Rotate the eigenvectors
-    [s.rotatedModes, s.rotatedEigvals, s.rotatedExpVar, s.rotationMatrix] = ...
-        varimaxRotation( s.scaledVecs, s.eigVals(1:s.numSig));
-    
-    % Get the rotated signals
-    s.rotatedSignals = getSignals(s.Datax0, s.rotatedModes);
-    
-    % Get the scaled rotated signals
-    s.scaledRotSignals = scaleSignals( s.rotatedSignals, s.rotatedEigvals);
-    
+        % Rotate the scaled eigenvectors
+        [s.rotModes, s.rotEigvals, s.rotExpVar, s.rotMatrix] = ...
+            varimaxRotation( s.scaModes(:,1:s.nSig), s.eigVals(1:s.nSig), s.expVar(1:s.nSig) );
+
+        % Get the rotated signals
+        s.rotSignals = getSignals(s.Datax0, s.rotModes);
+
+        % Get the scaled rotated signals
+        s.scaRotSignals = scaleSignals( s.rotSignals, s.rotEigvals);
+    end
 end
 
+% Add metadata
+s.conf = 1-pval;
+s.metadata = [{'matrix';'MC';'noiseType';'svdArgs';'sigTest';'convergeTest'},...
+    {matrix; MC; noiseType; svdArgs; ~blockMC; convergeTest}];
 end
 
 %%%%% Helper Functions %%%%%
-function[notFullSvd] = setup(covcorr, varargin)
+function[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin)
+inArgs = varargin;
 
-notFullSvd = false;
+% Set defaults
+showProgress = 'noProgress';
+svdArgs = {'svd'};
+blockMC = false;
+convergeTest = true;
 
-% Determine if explainedVar will need extra inputs
-for ks = 1:length(varargin)
-    spec = varargin{ks};
+% Get input values
+if ~isempty(inArgs)
+    isSvdsArg = false;
     
-    if isscalar(spec)  % Only the first several eigs are stored
-        notFullSvd = true; 
-    elseif strcmp(spec, 'econ') % Economy size SVD is performed
-        notFullSvd = true;
+    % Get each input
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+        
+        if isSvdsArg
+            if isscalar(arg) || strcmpi(arg,'econ')
+                svdArgs = {'svds', arg};
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        elseif strcmpi(arg, 'showProgress') 
+            showProgress = 'showProgress';
+        elseif strcmpi(arg, 'noSigTest')
+            blockMC = true;
+        elseif strcmpi(arg, 'noConvergeTest')
+            convergeTest = false;
+        elseif strcmpi(arg, 'svds')
+            if length(inArgs) >= k+1
+                isSvdsArg = true;
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
+        else
+            error('Unrecognized Input');
+        end
     end
-    
-    if notFullSVD && strcmp(covcorr, 'none')
-        error('Explained variance cannot be calculated when an incomplete SVD is performed directly on a data matrix.');
-    end
-end
-    
-% SVDS is always economy sized
-if strcmp(covcorr, 'svds')
-    notFullSvd = true;
-end
-    
-
-
-end
-
-function[] = extraCheck(egg)
-% ... Happy Easter!
-if strcmp(egg, 'Easter Egg') || strcmp(egg, 'easter egg') || strcmp(egg, 'Easter egg')
-    fprintf('After careful analysis, PCs are better than Macs...\r\n');
-else
-    error('Insufficient input arguments for full PC Analysis');
-end
-end
+end       
+end             
