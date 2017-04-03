@@ -6,7 +6,9 @@
 % also be used individually.
 %
 % Main Function:
-%   EOF_Analysis  - Performs a full EOF Analysis of a data set.
+%   EOF_Analysis  - Performs a full EOF Analysis of a data set. Uses a
+%   Rule N significance test and performs a Varimax rotation of significant
+%   modes.   
 %
 % Figure Functions:
 %   EOFloadings  - Plots the loadings of data series on significant modes.
@@ -14,8 +16,7 @@
 %   plotRuleN    - Plots the convergence (or lack thereof) of the Rule N Monte Carlo tests.
 %
 % Operational Functions:
-%   simpleEOF    - Gets the EOFs of a data matrix
-%   explainedVar - Gets the percent explained variance of a set of eigenvalues / loadings
+%   simpleEOF    - Gets the EOF modes, and associated eigenvalues and explained variance for a data matrix
 %   getSignals   - Gets the signals from a standardized dataset and its eigenvectors / modes.
 %   scaleSignals - Scales signals to the standard deviation of the standardized data.
 %   ruleN        - Runs a Rule N significance test on a data matrix and its eigenvalues / loadings.

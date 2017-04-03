@@ -1,8 +1,8 @@
-function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
-    ruleN(Data, matrix, eigVals, MC, noiseType, pval, varargin)
+function[nSig, randEigSort, thresh, trueConf, varargout] = ...
+    ruleN(Data, matrix, normEigvals, MC, noiseType, pval, varargin)
 %% Runs a Rule N significance test on a data matrix and its eigenvalues.
 %
-% [nSig, randEigSort, normEigvals, thresh, trueConf, iterTrueConf, iterSigEigs] = ...
+% [nSig, randEigSort, thresh, trueConf, iterTrueConf, iterSigEigs] = ...
 %    ruleN(Data, matrix, eigVals, MC, noiseType, pval)
 % Runs a Rule N significance test on a dataset and saves Monte Carlo
 % convergence data.
@@ -11,7 +11,7 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
 % Choose whether to display the current Monte Carlo iteration against the total number of
 % simulations.
 %
-% [nSig, randEigSort, normEigvals, thresh, trueConf] = ruleN(..., convergeTest)
+% [nSig, randEigSort, thresh, trueConf] = ruleN(..., convergeTest)
 % Choose whether to include or block the recording of the Monte Carlo 
 % iteration convergence. Blocking may speed runtime for large analyses, but
 % causes a loss of information.
@@ -36,7 +36,8 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
 %               different magnitudes.
 %       'none': Perform svd directly on data matrix.
 %
-% eigVals: The eigenvalues of the analysis matrix of Data
+% normEigvals: The normalized eigenvalues of the analysis matrix. Generally
+%       equivalent to the explained variance of EOF modes.
 %
 % MC: The number of Monte Carlo iterations to perform
 %
@@ -61,8 +62,6 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
 % lastSigNum: The number of eigenvalues that pass rule N
 %
 % randEigSort: The matrix of random, normalized, sorted eigenvalues
-%
-% normEigvals: The normalized data eigenvalues
 % 
 % thresh: The index of the threshold row in randEigSort of which data
 %       eigenvalues must exceed to remain significant.
@@ -77,7 +76,7 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
 
 % Inputs and error checking
 [showProgress, testConverge, svdArgs] = parseInputs(varargin{:});
-errCheck(Data, eigVals, MC, pval)
+errCheck(Data, normEigvals, MC, pval)
 
 % Preallocate output
 [~, n] = size(Data);
@@ -139,9 +138,6 @@ end
 % Calculate the confidence level threshold and its true confidence level
 thresh = ceil( MC * (1-pval) );
 trueConf = thresh / MC;
-
-% Normalize the data eigenvalues
-normEigvals = eigVals ./ sum(eigVals);
 
 % Find the significant values
 for k = 1:n

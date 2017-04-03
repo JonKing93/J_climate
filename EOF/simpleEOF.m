@@ -1,7 +1,7 @@
-function[eigVals, modes, Datax0, C] = simpleEOF(Data, matrix, varargin)
+function[eigVals, modes, expVar, Datax0, C] = simpleEOF(Data, matrix, varargin)
 %% Gets the EOF modes and loadings of a data matrix.
 % 
-% [eigVals, modes, Datax0, C] = simpleEOF(Data, matrix)
+% [eigVals, modes, expVar, Datax0, C] = simpleEOF(Data, matrix)
 %
 % [...] = simpleEOF(Data, matrix, 'svds', 'econ')
 % Uses an economy sized svds decomposition rather than the full svd.
@@ -23,19 +23,18 @@ function[eigVals, modes, Datax0, C] = simpleEOF(Data, matrix, varargin)
 %       'corr': Correlation matrix -- Minimizes relative variance along
 %               EOFs. Useful for data series with significantly
 %               different magnitudes.
-%       'none': Perform svd directly on data matrix.
 %
 %
 % ----- Outputs -----
 %
-% modes: The EOF modes. These are the eigenvectors of the analysis 
-%       matrix. Each column is one mode.
-%
-% loadings: A vector of the mode loadings sorted from most to least 
-%       significant. Loadings are the eigenvalues for the analysis matrix.
+% eigVals: The eigenvalues of the analysis matrix. These determine the
+%       significance of each mode.
 %
 % modes: The EOF modes. These are the eigenvectors of the analysis 
 %       matrix. Each column is one mode.
+%
+% expVar: The amount of data variance explained by each mode. Equivalent to
+%       the normalized eigenvalues.
 %
 % Datax0: The standardized or detrended data matrix
 %
@@ -49,18 +48,20 @@ function[eigVals, modes, Datax0, C] = simpleEOF(Data, matrix, varargin)
 errCheck(Data, matrix);
 
 % Standardize Data
-Datax0 = standardizeData(Data, matrix); % Helper function
+if strcmp(matrix, 'corr')
+    Datax0 = zscore(Data);
+else    % matrix = 'cov'
+    Datax0 = detrend(Data, 'constant');
+end
 
-% Get the covariance / correlation / detrended data matrix.
-C = getAnalysisMatrix( Datax0, matrix);
+% Get the analysis matrix for decomposition.
+C = cov(Datax0);
 
 % Run SVD(S)
 [eigVals, modes] = quickSVD(C, svdArgs{:});
 
-% Calculate eigenvalues if SVD is performed directly on data
-if strcmpi(matrix, 'none')
-    eigVals = (eigVals.^2) / (length(eigVals) - 1);
-end
+% Get the expalined variance = normalized eigenvalues
+expVar = eigVals / sum(var(Datax0));
 
 end
 
@@ -110,26 +111,7 @@ if hasNaN(Data)
 end
 
 % Matrix is recognized
-if ~any( strcmpi(matrix, {'corr','cov','none'}) )
+if ~any( strcmpi(matrix, {'corr','cov'}) )
     error('Unrecognized matrix');
-end
-end
-
-function[Datax0] = standardizeData(Data, covcorr)
-% Standardizes the data as appropriate
-if strcmp(covcorr, 'corr')
-    Datax0 = zscore(Data);
-else
-    Datax0 = detrend(Data, 'constant');
-end
-end
-
-function[C] = getAnalysisMatrix( Datax0, matrix)
-if strcmpi(matrix, 'cov') || strcmpi(matrix, 'corr')
-    % Note that the corr matrix has been zscored, so taking the covariance
-    % is equivalent to the correlation matrix.
-    C = cov(Datax0);
-else
-    C = Datax0;
 end
 end

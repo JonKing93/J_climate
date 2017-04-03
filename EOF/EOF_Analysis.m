@@ -64,16 +64,15 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %   modes: The EOF modes. These are the eigenvectors of the analysis 
 %       matrix, also known as loadings. Each column is one mode.
 %
-%   expVar: The data variance explained by each mode.
+%   expVar: The data variance explained by each mode. Equivalent to the
+%       normalized eigenvalues.
 %
 %   signals: The signal for each EOF mode. Signals are the imprint of each
 %       mode on the original data series, also known as scores or EOF 
 %       time series. Each column is one signal.
 %
 %   scaSignals: The signals scaled to the standardized data matrix. Allows
-%       for quick comparison of signals with the original data series.
-%
-%   normVals: The normalized data eigenvalues.
+%       for quick comparison of signals with the standardized data series.
 %
 %   nSig: The number of modes that pass the Rule N significance test. 
 %
@@ -111,48 +110,40 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %       Contains: matrix, MC, noisetype, pval, and any additional flags.
 
 % Parse Inputs, all error checking will occur in called functions
-[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin(:));
-
-% Do some setup
-% % % % % % % % % % % % % % % [incompleteSVD] = setup(matrix, svdArgs);
+[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin{:});
 
 % Declare the intial structure
 s = struct();
 
 % Run the initial EOF on the Data
-[s.eigVals, s.modes, s.Datax0, s.C] = simpleEOF(Data, matrix, svdArgs{:});
+[s.eigVals, s.modes, s.expVar, s.Datax0, s.C] = simpleEOF(Data, matrix, svdArgs{:});
 
 % Get the signals
 s.signals = getSignals(s.Datax0, s.modes);
 
-% Get the scaled signals
+% Scale the signals to the standardized data
 s.scaledSignals = scaleSignals(s.signals, s.eigVals);
-
-% Get the explained variance
-if incompleteSVD   % Use the data variance if svd was incomplete
-    s.expVar = explainedVar(s.eigVals, s.Datax0);
-else
-    s.expVar = explainedVar(s.eigVals);
-end    
 
 % Rule N, and rotation require significance testing to continue
 if ~blockMC
 
-    % Run the Rule N significance test
-    [s.nSig, s.randEigvals, s.normVals, s.thresh, s.trueConf, s.iterSigEigs, s.iterTrueConf] = ...
-            ruleN(Data, matrix, s.eigVals, MC, noiseType, pval, svdArgs, showProgress, convergeTest);
+    % Run Rule N, with or without convergence testing.
+    if convergeTest  % with convergence testing
+        [s.nSig, s.randEigvals, s.thresh, s.trueConf, s.iterSigEigs, s.iterTrueConf] = ...
+                ruleN(Data, matrix, s.expVar, MC, noiseType, pval, svdArgs, showProgress);
+    else    % No convergence testing
+        [s.nSig, s.randEigvals, s.thresh, s.trueConf] = ...
+            ruleN(Data, matrix, s.expVar, MC, noiseType, pval, svdArgs, showProgress, 'noConvergeTest');
+    end
     
-    % Less than 2 significant eigs, cannot rotate
+    % Perform a Varimax rotation of significant modes.
     if s.nSig < 2   
-         % Do nothing
-    
-    % There are significant modes, rotate them...
+    % Less than 2 significant modes, cannot rotate, do nothing
     else 
-
         % Scale the eigenvectors
         s.scaModes = scaleModes( s.modes(:,1:s.nSig), s.eigVals(1:s.nSig));
 
-        % Rotate the eigenvectors
+        % Rotate the scaled eigenvectors
         [s.rotModes, s.rotEigvals, s.rotExpVar, s.rotMatrix] = ...
             varimaxRotation( s.scaModes(:,1:s.nSig));
 
@@ -161,9 +152,7 @@ if ~blockMC
 
         % Get the scaled rotated signals
         s.scaRotSignals = scaleSignals( s.rotSignals, s.rotEigvals);
-    
     end
-
 end
 end
 
@@ -175,7 +164,7 @@ inArgs = varargin;
 showProgress = 'noProgress';
 svdArgs = {'svd'};
 blockMC = false;
-convergeTest = 'testConverge';
+convergeTest = true;
 
 % Get input values
 if ~isempty(inArgs)
@@ -196,7 +185,7 @@ if ~isempty(inArgs)
         elseif strcmpi(arg, 'noSigTest')
             blockMC = true;
         elseif strcmpi(arg, 'noConvergeTest')
-            convergeTest = 'noConvergeTest';
+            convergeTest = false;
         elseif strcmpi(arg, 'svds')
             if length(inArgs) >= k+1
                 isSvdsArg = true;
@@ -209,33 +198,3 @@ if ~isempty(inArgs)
     end
 end       
 end             
-% % % % % % % % %             
-% % % % % % % % % function[incompleteSvd] = setup(matrix, svdArgs)
-% % % % % % % % % 
-% % % % % % % % % incompleteSvd = false;
-% % % % % % % % % 
-% % % % % % % % % if length(svdArgs)
-% % % % % % % % % % Determine if explainedVar will need extra inputs
-% % % % % % % % % for ks = 1:length(varargin)
-% % % % % % % % %     spec = varargin{ks};
-% % % % % % % % %     
-% % % % % % % % %     if isscalar(spec)  % Only the first several eigs are stored
-% % % % % % % % %         incompleteSvd = true; 
-% % % % % % % % %     elseif strcmp(spec, 'econ') % Economy size SVD is performed
-% % % % % % % % %         incompleteSvd = true;
-% % % % % % % % %     end
-% % % % % % % % %     
-% % % % % % % % %     if notFullSVD && strcmp(covcorr, 'none')
-% % % % % % % % %         error('Explained variance cannot be calculated when an incomplete SVD is performed directly on a data matrix.');
-% % % % % % % % %     end
-% % % % % % % % % end
-% % % % % % % % %     
-% % % % % % % % % % SVDS is always economy sized
-% % % % % % % % % if strcmp(covcorr, 'svds')
-% % % % % % % % %     incompleteSvd = true;
-% % % % % % % % % end
-% % % % % % % % %     
-% % % % % % % % % 
-% % % % % % % % % 
-% % % % % % % % % end
-% % % % % % % % % 
