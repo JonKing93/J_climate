@@ -72,7 +72,7 @@ if haveEigvals && ~ismatrix(eigVals)
 end
 
 % Check for NaN
-if NaNcheck(scaledEigvecs)
+if hasNaN(scaledEigvecs)
     error('scaledEigVecs cannot contain NaN');
 end
 if haveEigvals && NaNcheck(eigVals)

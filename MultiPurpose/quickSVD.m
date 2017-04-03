@@ -58,18 +58,26 @@ svdFunc = 'svd';
 svdsArg = NaN;
 
 if ~isempty(inArgs)
-   for k = 1:length(inArgs)
-       arg = inArgs{k};
+    isSvdsArg = false;
+    
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
        
-       if strcmpi(arg,'svd')
-           % Do nothing
-       elseif strcmpi(arg, 'svds')
-            if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
+        if isSvdsArg
+            if isscalar(arg) || strcmpi(arg,'econ')
                 svdFunc = 'svds';
-                svdsArg = inArgs{k+1};
+                svdsArg = arg;
             else
                 error('The svds flag must be followed by nEigs or the ''econ'' flag');
             end
+        elseif strcmpi(arg,'svd')
+            % Do nothing
+        elseif strcmpi(arg, 'svds') 
+            if length(inArgs)>=k+1
+                isSvdsArg = true;
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end            
         else
             error('Unrecognized Input');
        end

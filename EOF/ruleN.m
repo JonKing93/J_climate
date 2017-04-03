@@ -12,7 +12,7 @@ function[nSig, randEigSort, normEigvals, thresh, trueConf, varargout] = ...
 % simulations.
 %
 % [nSig, randEigSort, normEigvals, thresh, trueConf] = ruleN(..., convergeTest)
-% Choose whether to include or block recording of the Monte Carlo 
+% Choose whether to include or block the recording of the Monte Carlo 
 % iteration convergence. Blocking may speed runtime for large analyses, but
 % causes a loss of information.
 %
@@ -164,15 +164,19 @@ svdArgs = {'svd'};
 
 % Get input values
 if ~isempty(inArgs)
+    isSvdsArg = false;
     
     % Get each input
     for k = 1:length(inArgs)
         arg = inArgs{k};
         
-        isSVDarg = false;
         
-        if isSVDarg
-            % Do nothing
+        if isSvdsArg
+            if isscalar(arg) || strcmpi(arg,'econ')
+                svdArgs = {'svds', arg};
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
         elseif strcmpi(arg, 'showProgress')
             showProgress = true;
         elseif strcmpi(arg, 'blockProgress')
@@ -184,8 +188,8 @@ if ~isempty(inArgs)
         elseif strcmpi(arg, 'svd')
             % Do nothing
         elseif strcmpi(arg, 'svds')
-            if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
-                svdArgs = {'svds', inArgs{k+1}};
+            if length(inArgs) >= k+1
+                isSvdsArg = true;
             else
                 error('The svds flag must be followed by nEigs or the ''econ'' flag');
             end

@@ -55,7 +55,7 @@ Datax0 = standardizeData(Data, matrix); % Helper function
 C = getAnalysisMatrix( Datax0, matrix);
 
 % Run SVD(S)
-[eigVals, modes] = quickSVD(C, svdArgs);
+[eigVals, modes] = quickSVD(C, svdArgs{:});
 
 % Calculate eigenvalues if SVD is performed directly on data
 if strcmpi(matrix, 'none')
@@ -73,16 +73,23 @@ inArgs = varargin;
 svdArgs = {'svd'};
 
 if ~isempty( inArgs)
+    svdsArg = false;
     for k = 1:length(inArgs)
         arg = inArgs{k};
         
-        if strcmpi(arg, 'svd')
+        if svdsArg
+            if isscalar(arg) || strcmpi(arg, 'econ')
+                svdArgs = {'svds',arg};
+            else
+                error('The svds flag must be followed by a positive integer or the ''econ'' flag');
+            end        
+        elseif strcmpi(arg, 'svd')
             % Do nothing
         elseif strcmpi(arg, 'svds')
-            if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
-                svdArgs = {'svds', inArgs{k+1}};
+            if length(inArgs) >= k+1
+                svdsArg = true;
             else
-                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+                error('The svds flag must be followed by a positive integer or the ''econ'' flag');
             end
         else
             error('Unrecognized Input');

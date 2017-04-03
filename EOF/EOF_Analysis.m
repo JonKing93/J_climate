@@ -128,12 +128,12 @@ s.signals = getSignals(s.Datax0, s.modes);
 % Get the scaled signals
 s.scaledSignals = scaleSignals(s.signals, s.eigVals);
 
-% % % % % % % % % % % % % % % % Get the explained variance
-% % % % % % % % % % % % % % % if incompleteSVD   % Use the data variance if svd was incomplete
-% % % % % % % % % % % % % % %     s.expVar = explainedVar(s.eigVals, s.Datax0);
-% % % % % % % % % % % % % % % else
-% % % % % % % % % % % % % % %     s.expVar = explainedVar(s.eigVals);
-% % % % % % % % % % % % % % % end    
+% Get the explained variance
+if incompleteSVD   % Use the data variance if svd was incomplete
+    s.expVar = explainedVar(s.eigVals, s.Datax0);
+else
+    s.expVar = explainedVar(s.eigVals);
+end    
 
 % Rule N, and rotation require significance testing to continue
 if ~blockMC
@@ -179,14 +179,18 @@ convergeTest = 'testConverge';
 
 % Get input values
 if ~isempty(inArgs)
+    isSvdsArg = false;
     
     % Get each input
     for k = 1:length(inArgs)
         arg = inArgs{k};
-        isSvdArg = false;
         
-        if isSvdArg
-            % Do nothing
+        if isSvdsArg
+            if isscalar(arg) || strcmpi(arg,'econ')
+                svdArgs = {'svds', arg};
+            else
+                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+            end
         elseif strcmpi(arg, 'showProgress') 
             showProgress = 'showProgress';
         elseif strcmpi(arg, 'noSigTest')
@@ -194,8 +198,8 @@ if ~isempty(inArgs)
         elseif strcmpi(arg, 'noConvergeTest')
             convergeTest = 'noConvergeTest';
         elseif strcmpi(arg, 'svds')
-            if length(inArgs) >= k+1 && ( isscalar(inArgs{k+1}) || strcmpi(inArgs{k+1},'econ') )
-                svdArgs = {'svds', inArgs{k+1}};
+            if length(inArgs) >= k+1
+                isSvdsArg = true;
             else
                 error('The svds flag must be followed by nEigs or the ''econ'' flag');
             end
