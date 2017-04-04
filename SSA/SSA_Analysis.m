@@ -5,11 +5,13 @@ function[s] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
 %
 % [SSA] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
 %
+%
 % ----- Inputs -----
 %
-% Data: a collection of time series stored as column vectors
+% Data: A vector of observations. Observations should be equally spaced in time.
 %
-% M: The size of the sampling window. If M is singular, all time series
+% M: The embedding dimension. This is the size of the sampling window used 
+%       to construct trajectories in the data series.The size of the sampling window. If M is singular, all time series
 % will be analyzed with a value of M. If a vector with length equal to the
 % number of time series, the sampling window M_j will be applied to time
 % series j.
@@ -26,6 +28,7 @@ function[s] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
 %
 % pval: The desired confidence interval eigenvalues should test in the
 %   MC_SSA significance test
+%
 %
 % ----- Outputs -----
 %
