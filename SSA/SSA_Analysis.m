@@ -1,4 +1,4 @@
-function[s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval)
+function[s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval, varargin)
 %% Performs singular spectra analyses for a collection of time series.
 % Computes RCs (reconstructed components), and performs a Monte Carlo
 % significance test
@@ -6,6 +6,14 @@ function[s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval)
 % [s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval)
 % Conducts a singular spectrum analysis of a time series and performs an
 % MC-SSA significance test on the results.
+%
+% [s] = SSA_Analysis(..., 'showProgress')
+% A flag to display the current Monte Carlo iteration number in the
+% significance test.
+%
+% [s] = SSA_Analysis(..., 'noConvergeTest')
+% A flag to block convergence testing during the significance test. This
+% may speed large analyses, but will cause a loss of information.
 %
 %
 % ----- Inputs -----
@@ -76,6 +84,9 @@ function[s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval)
 %   metadata: A cell with the trajectory algorithm, Monte Carlo number,
 %       noise type, and p value for the analysis.
 
+% Parse the inputs
+[showProgress, convergeTest] = parseInputs(varargin{:});
+
 % Declare the initial structure
 s = struct();
 
@@ -86,7 +97,8 @@ s = struct();
 [s.RCs, ~] = getRCs( s.singVecs, s.T, algorithm);
 
 % Run an MC_SSA
-s.surrEig = MC_SSA(s.ts_m0, s.singVecs, MC, noise, M, algorithm);
+[s.surrVals, s.iterSigVals, s.iterTrueConf] = ...
+    MC_SSA(s.ts_m0, s.singVecs, MC, noise, M, algorithm, pval, showProgress, convergeTest);
 
 %% Do a significance test using the surrogate eigenvectors
 [s.sigEigDex, s.upperTail, s.lowerTail] = sigTestMCSSA(pval, s.eigvals, s.surrEig);
@@ -101,4 +113,23 @@ end
 %% Assign the metadata
 s.metadata = {algorithm, MC, noise, pval};
 
+end
+
+function[showProgress, convergeTest] = parseInputs(varargin)
+inArgs = varargin;
+showProgress = 'noProgress';
+convergeTest = 'convergeTest';
+
+if ~isempty(inArgs)
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+        if strcmpi(arg, 'showProgress')
+            showProgress = arg;
+        elseif strcmpi(arg, 'noConvergeTst')
+            convergeTest = arg;
+        else
+            error('Unrecognized input');
+        end
+    end
+end
 end
