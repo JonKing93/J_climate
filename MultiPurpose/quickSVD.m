@@ -2,7 +2,7 @@ function[eigvals, eigvecs] = quickSVD(C, varargin)
 %% Run singular value decomposition on a matrix. Returns eigenvalues, eigenvectors with majority positive loadings.
 %
 % [eigvals, eigvecs] = quickSVD(C)
-%   performs a full SVD on a matrix or set of matrices.
+%   performs a full SVD on a matrix.
 %
 % [...] = quickSVD(C, 'svds', 'econ')
 % Uses an economy sized svds decomposition rather than the full svd.
