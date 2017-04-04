@@ -61,25 +61,23 @@ function[s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval, varargin)
 %       matrix corresponds to a particular time series. Each column of each
 %       matrix contains 1 reconstructed component.
 %
-%   surrEig: The surrogate eigenvalues from the Monte Carlo test. dim1 is
-%       the Monte Carlo number, dim2 is the eigenvalue, dim3 is the time
-%       series.
+%   surrVals: The sorted surrogate eigenvalues from the Monte Carlo
+%       significance test.
 %
-%   sigEigDex: A boolean vector containing true/false indices for the
-%       eigenvalues that passed the MC_SSA significance test.
+%   isSigVal: A boolean vector containing true/false indices for the
+%       singular values that passed the MC_SSA significance test.
 %
-%   upperTail: A vector containing the surrogate eigenvalues from the
-%       MC_SSA on the high end of the significance tail.
+%   upSigVals: A vector containing the surrogate eigenvalues from the
+%       MC_SSA on the upper tail of the confidence interval.
 %
-%   lowerTail: A vector containing the surrogate eigenvalues from the
-%       MC_SSA on the low end of the significance tail
-%       tail of the MC_SSA
+%   lowSigVals: A vector containing the surrogate eigenvalues from the
+%       MC_SSA on the lower tail of the confidence interval.
 %
-%   maxFreq: The frequency with maximum power (using a periodogram) for
-%       each Data eigenvector.
+%   maxFreq: The frequency with maximum power (using a raw periodogram) for
+%       each singular vector.
 %
-%   maxPeriod: The period with maximum power (using a periodogram) for each
-%       Data eigenvector.
+%   maxPeriod: The period with maximum power (using a raw periodogram) for each
+%       singular vector.
 %
 %   metadata: A cell with the trajectory algorithm, Monte Carlo number,
 %       noise type, and p value for the analysis.
@@ -100,10 +98,10 @@ s = struct();
 [s.surrVals, s.iterSigVals, s.iterTrueConf] = ...
     MC_SSA(s.ts_m0, s.singVecs, MC, noise, M, algorithm, pval, showProgress, convergeTest);
 
-%% Do a significance test using the surrogate eigenvectors
-[s.sigEigDex, s.upperTail, s.lowerTail] = sigTestMCSSA(pval, s.eigvals, s.surrEig);
+% Do a significance test using the surrogate eigenvectors
+[s.iSigVal, s.upSigVals, s.lowSigVals] = sigTestMCSSA(pval, s.singVals, s.surrVals);
 
-%% Get the periods/frequencies with maximum power from the data eigenvectors
+% Get the periods/frequencies with maximum power from the data eigenvectors
 s.maxFreq = NaN(size(s.eigvals));
 s.maxPeriod = s.maxFreq;
 for k = 1:size(s.eigvals,2)
