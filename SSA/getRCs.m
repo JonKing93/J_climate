@@ -70,7 +70,7 @@ if ~ismatrix(singVecs) || ~ismatrix(T) || hasNaN(singVecs) || hasNaN(T)
 end
 
 % Calculate some sizes
-M = size(T,1);
+[M, ncols] = size(T);
 
 % Get the number of points
 switch algorithm
