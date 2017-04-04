@@ -1,12 +1,12 @@
-function[maxFreq, maxPeriod] = maxFreqPeriod(X)
-%% Obtains the frequency and associated period with maximum power from the periodogram
-% for each column of a set of column vectors
+function[maxFreq, maxPeriod] = maxFreqPeriod(singVecs)
+%% Obtains the frequency and associated period with maximum power from the raw periodogram
+% of a time series
 %
-% [maxFreq, maxPeriod] = maxFreqPeriod(X)
+% [maxFreq, maxPeriod] = maxFreqPeriod(singVecs)
 %
 % ----- Inputs -----
 % 
-% X: a set of column vectors, must be 2D
+% singVecs: A set of singular vectors. Each column is one vector.
 % 
 % ----- Outputs -----
 %
@@ -17,28 +17,28 @@ function[maxFreq, maxPeriod] = maxFreqPeriod(X)
 % Set the frequency function
 freqFunc = @periodogram;
 
-% Error check and get sizes
-[nvecs] = setup(X);
+% Error check and the number of vectors
+[nvecs] = setup(singVecs);
 
 % Determine lengths and get w
-[nF1, w] = freqFunc(X(:,1));
+[nF1, w] = freqFunc(singVecs(:,1));
 lnf = length(nF1); % Length of the normed freq
 
 % Preallocate
 normFreq = NaN(lnf, nvecs);
 maxDex = NaN(nvecs,1);
 
-% Run over every column vector
+% For each column vector
 for k = 1:nvecs
-    % Compute a periodogram
-    [normFreq(:,k)] = freqFunc( X(:,k) );
+    % Compute a periodogram of the vector
+    [normFreq(:,k)] = freqFunc( singVecs(:,k) );
     
     % Get the maximum frequency
-    maxima = find( normFreq(:,k) == max(normFreq(:,k)) );
+    maxima = find( normFreq(:,k) == max(normFreq(:,k)),1 );
     
-    % Check for multiple maxima
-    if length(maxima) > 1
-        error('Multiple Maxima in vector %i',k);
+    % Give a warning if multiple maxima occur
+    if length( find(normFreq(:,k) == max(normFreq(:,k)))) > 1
+        warning('Multiple Maxima in vector %i',k);
     end
     maxDex(k) = maxima;
 end
@@ -55,12 +55,12 @@ end
 
 
 % ----- Helper Functions -----
-function[nvecs] = setup(X)
+function[nvecs] = setup(ts)
 
-if ~ismatrix(X)
+if ~ismatrix(ts)
     error('X must be a 2D matrix of column vectors');
 end
 
-[nvecs] = size(X,2);
+[nvecs] = size(ts,2);
 
 end

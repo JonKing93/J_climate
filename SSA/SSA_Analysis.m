@@ -101,15 +101,11 @@ s = struct();
 % Do a significance test using the surrogate eigenvectors
 [s.iSigVal, s.upSigVals, s.lowSigVals] = sigTestMCSSA(pval, s.singVals, s.surrVals);
 
-% Get the periods/frequencies with maximum power from the data eigenvectors
-s.maxFreq = NaN(size(s.eigvals));
-s.maxPeriod = s.maxFreq;
-for k = 1:size(s.eigvals,2)
-    [s.maxFreq, s.maxPeriod] = maxFreqPeriod( s.eigvecs(:,:,k));
-end
+% Get the periods/frequencies with maximum power from the singular vectors
+[s.maxFreq, s.maxPeriod] = maxFreqPeriod(s.singVecs);
 
-%% Assign the metadata
-s.metadata = {algorithm, MC, noise, pval};
+% Assign the metadata
+s.metadata = [{'algorithm';'MC';'noise';'pval'}, {algorithm; MC; noise; pval}];
 
 end
 
