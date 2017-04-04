@@ -85,8 +85,8 @@ s = struct();
 % Get the RCs
 [s.RCs, ~] = getRCs( s.singVecs, s.T, algorithm);
 
-%% Run an MC_SSA
-s.surrEig = MC_SSA(s.Data_m0, s.eigvecs, MC, noise, M, algorithm);
+% Run an MC_SSA
+s.surrEig = MC_SSA(s.ts_m0, s.singVecs, MC, noise, M, algorithm);
 
 %% Do a significance test using the surrogate eigenvectors
 [s.sigEigDex, s.upperTail, s.lowerTail] = sigTestMCSSA(pval, s.eigvals, s.surrEig);
