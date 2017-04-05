@@ -99,7 +99,7 @@ s = struct();
     MC_SSA(s.ts_m0, s.singVecs, MC, noise, M, algorithm, pval, showProgress, convergeTest);
 
 % Do a significance test using the surrogate eigenvectors
-[s.iSigVal, s.upSigVals, s.lowSigVals] = sigTestMCSSA(pval, s.singVals, s.surrVals);
+[s.isSigVal, s.upSigVals, s.lowSigVals] = sigTestMCSSA(pval, s.singVals, s.surrVals);
 
 % Get the periods/frequencies with maximum power from the singular vectors
 [s.maxFreq, s.maxPeriod] = maxFreqPeriod(s.singVecs);

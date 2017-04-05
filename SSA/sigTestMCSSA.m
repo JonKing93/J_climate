@@ -42,6 +42,12 @@ upSigVals = surrVals( maxRowDex, :);
 lowSigVals = surrVals( minRowDex, :);
 
 % Get the indices of the eigenvalues that passed the significance test
+if isrow(singVals)
+    singVals = singVals';
+end
+if isrow(upSigVals)
+    upSigVals = upSigVals';
+end
 isSigVal = singVals > upSigVals;
 
 end

@@ -93,7 +93,7 @@ for k = 1:MC
         iterTrueConf(k) = thresh/k;
         
         % Get the set of values on the confidence interval
-        iterSigVals(k,:) = iterSigVals(thresh,:);
+        iterSigVals(k,:) = surrVals(thresh,:);
     end        
 end
 
