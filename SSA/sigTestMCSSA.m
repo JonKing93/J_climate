@@ -1,62 +1,60 @@
-function[sigEigDex, upperTail, lowerTail] = sigTestMCSSA( p, dataEigvals, surrEigvals)
+function[isSigVal, upSigVals, lowSigVals] = sigTestMCSSA( pval, singVals, surrVals)
 %% Performs a significance test of data SSA eigenvalues against MC_SSA surrogates eigenvalues
 %
-% [sigEigDex, upperTail, lowerTail] = sigTestMCSSA( p, dataEigvals, surrEigvals)
+% [sigEigDex, upperTail, lowerTail] = sigTestMCSSA( pval, dataEigvals, surrEigvals)
+% Determines which singular values pass the significance threshold.
 %
 % ----- Inputs -----
 %
-% p: The significance level that the test should pass. This should be a
-%   number between 0 and 1 (e.g. 0.05 is the 95% confidence interval)
+% pval: The significance level that the test should pass. This should be a
+%   number between 0 and 1.
 %
-% dataEigval: A set of time series eigenvalues. Each column contains the
-%   eigenvalues of a particular time series
+% dsingVals: A set of singular values.
 %
-% surrEigvals: A set of surrogate eigenvalues generated using MC_SSA. dim1 is
-%   the Monte Carlo number, dim2 is each windowed eigenvalue, dim3 is the
-%   time series.
+% surrVals: A set of surrogate eigenvalues.
+%
 %
 % ----- Outputs -----
 %
-% sigEigDex: A boolean (true/false) vector with the indices of the data 
+% isSigVal: A boolean (true/false) vector with the indices of the data 
 %   eigenvalues that pass the significance test. Each column corresponds to a
 %   particular time series.
 %
-% upperTail: A matrix of the surrogate eigenvalues on the upper tail of
+% upSigVals: A matrix of the surrogate eigenvalues on the upper tail of
 %   the significance test. Each column corresponds to a particular time
 %   series.
 %
-% lowerTail: A matrix of the surrogate eigenvalues on the lower tail of
+% lowSigVals: A matrix of the surrogate eigenvalues on the lower tail of
 %   the significance test. Each column corresponds to a particular time
 %   series.
 %
 
 % Run an error check and get some initial sizes.
-[MC] = setup(p, dataEigvals, surrEigvals);
-p = 1-p;
+[MC] = setup(pval, singVals, surrVals);
+conf = 1-pval;
 
-% Get the indices of the confidence interval
-maxRowDex = ceil( MC * (p + (1 - p)/2)  ) ;
-minRowDex = floor( MC * (1-p)/2 );
+% Get the indices of the surrogate band.
+maxRowDex = ceil( MC * (conf + (pval/2)  ) );
+minRowDex = floor( MC * (pval/2) );
 
 % Get the vectors of the two tails of the confidence interval;
-upperTail = squeeze( surrEigvals( maxRowDex, :, :) );
-lowerTail = squeeze( surrEigvals( minRowDex, :, :) );
-
-% For a single time series, the squeeze operation will convert highSurrTail
-% and lowSurrTail to row vectors. This returns them to column vectors.
-if size(upperTail,1) == 1
-    upperTail = upperTail';
-    lowerTail = lowerTail';
-end
+upSigVals = surrVals( maxRowDex, :);
+lowSigVals = surrVals( minRowDex, :);
 
 % Get the indices of the eigenvalues that passed the significance test
-sigEigDex = dataEigvals > upperTail;
+if isrow(singVals)
+    singVals = singVals';
+end
+if isrow(upSigVals)
+    upSigVals = upSigVals';
+end
+isSigVal = singVals > upSigVals;
 
 end
 
 
 % ----- Helper functions -----
-function[MC] = setup(pval, dataEigval, surrEigval)
+function[MC] = setup(pval, singVals, surrVals)
 
 % Ensure pval is between 0 and 1
 if pval >= 1 || pval <= 0
@@ -64,25 +62,25 @@ if pval >= 1 || pval <= 0
 end
 
 % Ensure the inputs have the correct dimensionality
-if ~ismatrix(dataEigval)
-    error('dataEigval must be a 2D matrix');
+if ~isvector(singVals)
+    error('singVals must be a vector');
 end
 
-if ndims(surrEigval) > 3
-    error('surrEigval cannot have more than 3 dimensions');
+if ~ismatrix(surrVals)
+    error('surrVals must be a matrix');
 end
 
 % Ensure the dimensions of the inputs align
-[dwindow, dnseries] = size(dataEigval);
-[MC, swindow, snseries] = size(surrEigval);
+[dwindow] = length(singVals);
+[MC, swindow] = size(surrVals);
 
-if dwindow ~= swindow || dnseries ~= snseries
+if dwindow ~= swindow
     error('Data and Surrogate eigenvalue matrices are not correctly aligned');
 end
 
 % Ensure the desired confidence interval is possible for the MC number
-if floor( MC * (1-pval)/2 ) == 0
-    minMC = 1/((1-pval)/2);
+if floor( MC * pval/2 ) == 0
+    minMC = 1/(pval/2);
     error('The Monte Carlo number is too small for this confidence interval. A value of %i or larger is required.',minMC);
 end
 end

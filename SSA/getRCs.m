@@ -1,80 +1,76 @@
-function[RCs, signals] = getRCs(eigvecs, traj, algorithm)
+function[RCs, signals] = getRCs(singVecs, T, algorithm)
 %% Calculates the RCs for a SSA output
 % 
-% [RCs, signals] = getRCs(eigvecs, traj, algorithm)
+% [RCs, signals] = getRCs(singVecs, T, algorithm)
+%
 %
 % ----- Inputs -----
 %
-% eigvecs: The eigenvectors for a set of trajectory matrices
+% singVecs: The singular vectors for a trajectory matrix.
 %
-% traj: A set of trajectory matrices. The RCs of the dim1 x dim2 matrices
-% will be calculated.
+% T: A trajectory matrix.
 %
 % algorithm: The algorithm used to calculate the trajectory matrices
 %   'BK': Broomhead - King
 %   'VG': Vautard - Ghil
 %
+%
 % ----- Outputs -----
 % 
-% RCs: The reconstructed components for a set of trajectories and
-% eigenvectors. Each column of the output is a particular RC
+% RCs: The reconstructed components for a trajectory matrix and associated
+%       singular values. Each column is an RC.
 %
 % signals: The signals calculated and used to construct the RCs. Each
-% column corresponds to the signal for a particular mode of the trajectory
+%       column is a signal
 
 % Error check, get some initial sizes
-[M, N, ncols, nseries] = setup(eigvecs, traj, algorithm);
+[M, N] = setup(singVecs, T, algorithm);
 
 % Preallocate
-signals = NaN(M, ncols, nseries);
-RCs = NaN(M,N, nseries);
+RCs = NaN(M, N);
 
-% For each series, calculate signals and RCs
-for j = 1:nseries
-    % Get signals
-    signals(:,:,j) = eigvecs(:,:,j)' * traj(:,:,j);
+% Get the signals
+signals = singVecs' * T;
     
-    
-    % Build the the RC matrix
-    for k=1:M
-        notNAN = ~isnan(signals(k,:,j));
-        RCs(k,:,j) = conv( eigvecs(:,k,j), signals(k, notNAN, j) );
-    end
+% Get the RCs by convolving the singular vectors with the signals
+for k=1:M
+    notNAN = ~isnan(signals(k,:));
+    RCs(k,:) = conv( singVecs(:,k), signals(k, notNAN) );
+end
 
-    % Apply convolution weights (i.e. normalize the RCs)
-    for k=1:N
-        % Case 1: incomplete overlap of functions because we are at the front
-        % of the vector
-        if k <= M-1
-            RCs(:,k,j) = RCs(:,k,j) ./ k;
-        
-        % Case 2: Complete overlap of the two functions
-        elseif k >= M && k <= N-M+1
-            RCs(:,k,j) = RCs(:,k,j) ./ M;
-        
-        % Case 3: Incomplete overlap because we are at the end of the vector
-        else
-            RCs(:,k,j) = RCs(:,k,j) ./ (N-k+1);
-        end
+% Apply convolution weights to normalize the RCs
+for k=1:N
+    % Case 1: incomplete overlap of functions because we are at the front
+    % of the vector
+    if k <= M-1
+        RCs(:,k) = RCs(:,k) ./ k;
+
+    % Case 2: Complete overlap of the two functions
+    elseif k >= M && k <= N-M+1
+        RCs(:,k) = RCs(:,k) ./ M;
+
+    % Case 3: Incomplete overlap because we are at the end of the vector
+    else
+        RCs(:,k) = RCs(:,k) ./ (N-k+1);
     end
 end
 
 % Return with individual RCs in columns
-RCs = permute(RCs, [2,1,3]);
-signals = permute(signals, [2,1,3]);
+RCs = permute(RCs, [2,1]);
+signals = permute(signals, [2,1]);
 
 end
 
 % ----- Helper functions -----
-function[M, N, ncols, nseries] = setup(eigvecs, traj, algorithm)
+function[M, N] = setup(singVecs, T, algorithm)
 
-% Ensure input matrices are 3D
-if ndims(eigvecs) > 3 || ndims(traj) > 3
-    error('Too many dimensions in input matrices');
+% Ensure inputs are matrices
+if ~ismatrix(singVecs) || ~ismatrix(T) || hasNaN(singVecs) || hasNaN(T)
+    error('singVecs and T must be matrices and cannot contain NaN');
 end
 
 % Calculate some sizes
-[M, ncols, nseries] = size(traj);
+[M, ncols] = size(T);
 
 % Get the number of points
 switch algorithm
@@ -87,9 +83,3 @@ switch algorithm
 end
 
 end
-
-
-
-
-
-

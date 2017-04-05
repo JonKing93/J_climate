@@ -1,107 +1,148 @@
-function[surrEig] = MC_SSA(Data_m0, eigvecs, MC, noise, window, algorithm)
+function[surrVals, iterSigVals, iterTrueConf] = MC_SSA(ts_m0, singVecs, MC, noise, window, algorithm, pval, varargin)
 %% Runs a Monte Carlo singular spectrum analysis. Generates surrogate eigenvalues.
 %
-% [surrEig] = MC_SSA(Data_m0, eigvecs, MC, noise, window, algorithm)
+% [surrVals, iterSigVals, iterTrueConf] = MC_SSA(ts_m0, singVecs, MC, noise, window, algorithm, pval)
+% Conducts an MC-SSA significance test on a set of singular vectors.
+% Returns the set of surrogate singular values as well as surrogate
+% eigenvalues at the significance level for each iteration.
+%
+% [...] = MC_SSA(..., showProgress)
+% A flag to show the current Monte Carlo iteration number.
+%
+% [surrVals] = MC_SSA(..., convergeTest)
+% A flag to block the saving of convergence information. May improve
+% runtime for large analyses, but causes a loss of information.
+%
 %
 % ----- Inputs -----
 % 
-% Data_m0: A set of time series with the means removed. Each column is a
-%   time series.
+% ts_m0: A time series with mean of 0.
 %
-% eigvecs: The eigenvectors for each time series. Each dim1 x dim2 matrix
-% corresponds to the eigenvectors of the corresponding time series. 
+% singVecs: The singular vectors for the time series.
 %
-% MC: The Monte Carlo number for the MC_SSA
+% MC: The number of Monte Carlo iterations in the MC-SSA
 % 
 % noise: The type of noise with which to construct surrogate trajectories
-%   'white': White Gaussian noise
-%   'red': Red lag-1 autocorrelated noise
+%       'white': White Gaussian noise
+%       'red': Red lag-1 autocorrelated noise with added white noise
 %
-% window: The size of window used to build SSA trajectories
+% window: The embedding dimension used to construct trajectories
 %
 % algorithm: The algorithm used to build SSA trajectories
-%   'BK': Broomhead-King
-%   'VG': Vautard-Ghil
+%       'BK': Broomhead-King
+%       'VG': Vautard-Ghil
+%
+% pval: The significance level to record for convergence testing.
+%
+% showProgress: A flag to display the current Monte Carlo iteration number
+%       'noProgress' (Default): Do not display number
+%       'showProgress': Display number
+%
+% convergeTest: A flag to toggle significance testing.
+%       'convergeTest' (Default): Record convergence information
+%       'noConvergeTest': Block the storage of convergence information
+%
 %
 % ----- Outputs -----
 %
-% surrEig: The matrix of surrogate eigenvectors
-% 
+% surrVals: The matrix of surrogate singular values
 
-% Error check and get some initial sizes
-[npoints, nseries] = errCheck(Data_m0, MC);
+% Error check
+[showProgress, convergeTest] = parseInputs(varargin{:});
+errCheck(ts_m0, MC, pval);
 
 % Preallocate surrogate matrices
-surr = NaN(npoints, MC, nseries);
-surrC = NaN(window, window, MC, nseries);
-surrProj = NaN(window, window, MC, nseries);
-surrEig = NaN(MC, window, nseries);
-
-% Calculate the appropriate autocorrelation coefficient for the noise type
-switch noise
-    % White noise
-    case 'white'
-        ar1 = zeros(nseries, 1);
-        
-    % Red autocorrelated lag-1 noise    
-    case 'red'
-        ar1 = corr( Data_m0(1:end-1,:), Data_m0(2:end,:) );
-        ar1 = diag(ar1);
-        
-    otherwise
-        error('Unrecognized noise type');
+surrC = NaN(window, window, MC);
+surrProj = NaN(window, window, MC);
+surrVals = NaN(MC, window);
+if convergeTest
+    iterSigVals = NaN(MC, window);
+    iterTrueConf = NaN(MC,1);
+else
+    iterSigVals = [];
+    iterTrueConf = [];
 end
 
-% Get the variances of the time series
-standev = std(Data_m0);
+% Build the surrogate series
+surr = randNoiseSeries(noise, ts_m0, MC);
 
-% Initialize the series
-surr(1,:,:) = 0;
-
-% For each time series...
-for j = 1:nseries
+% For each surrogate series...
+for k = 1:MC
     
-    % Build the surrogate series
-    surr(:,:,j) = randNoiseSeries(Data_m0(:,j), MC, noise);
-    
-    % Scale the surrogate series to the standard deviation of the data
-    % series
-    surr(:,:,j) = surr(:,:,j) * standev(j);
-    
-    % For each surrogate series...
-    for k = 1:MC
-        
-        % Get the trajectory and associated covariance matrix
-        [~, surrC(:,:,k,j)] = buildTrajandCov(surr(:,k,j), window, algorithm);
-        
-        % Project onto the data eigenvector basis
-        surrProj(:,:,k,j) = eigvecs(:,:,j)' * surrC(:,:,k,j) * eigvecs(:,:,j);
-        
-        % Extract the diagonal elements
-        surrEig(k,:,j) = diag( surrProj(:,:,k,j) );
+    % Show progress if desired
+    if showProgress
+        fprintf('Monte Carlo Iteration: %i / %i\r\n', k, MC);
     end
+
+    % Get the trajectory and associated covariance matrix
+    [~, surrC(:,:,k)] = getTandC(surr(:,k), window, algorithm);
+
+    % Project onto the data eigenvector basis
+    surrProj(:,:,k) = singVecs' * surrC(:,:,k) * singVecs;
+
+    % Extract the diagonal elements
+    surrVals(k,:) = diag( surrProj(:,:,k) );
     
-    % Sort the projection diagonals for each time series
-    surrEig(:,:,j) = sort( surrEig(:,:,j) );
+    % Sort surrVals every iteration if testing convergence
+    if convergeTest
+        % Sort the new set of surrogate values
+        surrVals = sort(surrVals);
+        
+        % Calculate the confidence level threshold
+        thresh = ceil(k* (1-pval));
+        iterTrueConf(k) = thresh/k;
+        
+        % Get the set of values on the confidence interval
+        iterSigVals(k,:) = surrVals(thresh,:);
+    end        
 end
 
+% Sort the projection diagonals if no convergence tests
+if ~convergeTest
+    surrVals = sort(surrVals);
+end
 
 end
 
 
 % ----- Helper functions -----
-function[npoints, nseries] = errCheck(Data_m0, MC)
+function[showProgress, convergeTest] = parseInputs(varargin)
+inArgs = varargin;
+showProgress = false;
+convergeTest = true;
+
+if ~isempty(inArgs)
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+        if strcmpi(arg, 'showProgress')
+            showProgress = true;
+        elseif strcmpi(arg, 'noProgress')
+            showProgress = false;
+        elseif strcmpi(arg, 'noConvergeTest')
+            convergeTest = false;
+        elseif strcmpi(arg, 'convergeTest')
+            % Do nothing
+        else
+            error('Unrecognized Input');
+        end
+    end
+end
+end
+            
+
+function[] = errCheck(ts_m0, MC, pval)
+
+if pval<=0 || pval>=1
+    error('pval must be on the interval (0,1)');
+end
 
 % Ensure Data_m0 is 2D
-if ~ismatrix(Data_m0)
-    error('MC_SSA is for 2D sets of time series');
+if ~isvector(ts_m0)
+    error('ts_m0 must be a vector');
 end
 
 % Ensure MC is positive
 if MC < 1
     error('Monte Carlo number must be positive');
 end
-
-% Get some sizes
-[npoints, nseries] = size(Data_m0);
 end

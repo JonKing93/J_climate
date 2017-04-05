@@ -1,47 +1,59 @@
-function[s] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
+function[s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval, varargin)
 %% Performs singular spectra analyses for a collection of time series.
 % Computes RCs (reconstructed components), and performs a Monte Carlo
 % significance test
 %
-% [SSA] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
+% [s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval)
+% Conducts a singular spectrum analysis of a time series and performs an
+% MC-SSA significance test on the results.
+%
+% [s] = SSA_Analysis(..., 'showProgress')
+% A flag to display the current Monte Carlo iteration number in the
+% significance test.
+%
+% [s] = SSA_Analysis(..., 'noConvergeTest')
+% A flag to block convergence testing during the significance test. This
+% may speed large analyses, but will cause a loss of information.
+%
 %
 % ----- Inputs -----
 %
-% Data: a collection of time series stored as column vectors
+% ts: A time series vector with equally spaced observations.
 %
-% M: The size of the sampling window. If M is singular, all time series
-% will be analyzed with a value of M. If a vector with length equal to the
-% number of time series, the sampling window M_j will be applied to time
-% series j.
+% M: The embedding dimension. This is the size of the sampling window used 
+%       to construct trajectories in the data series. M corresponds to the 
+%       largest wavelength that can be extracted from the data. However,
+%       smaller values of M yield higher confidence in extracted information.
 %
 % algorithm:
-%   'BK': Broomhead-King
-%   'VG': Vautard-Ghill
+%       'BK': Broomhead-King -- Slightly less bias for nonstationary time series
+%       'VG': Vautard-Ghil -- Enhanced noise reduction for short time series
 %
-% MC: The monte carlo number for the MC_SSA significance test
+% MC: The number of iterations for the monte carlo significance test.
 %
 % noise: The noise type to use in the MC_SSA significance test
-%   'white': white Gaussian noise
-%   'red': red, lag-1 autocorrelated noise
+%       'white': white Gaussian noise
+%       'red': red, lag-1 autocorrelated noise with added white noise
 %
-% pval: The desired confidence interval eigenvalues should test in the
-%   MC_SSA significance test
+% pval: The desired significance level that eigenvalues should pass in the
+%       MC_SSA significance test
+%
 %
 % ----- Outputs -----
 %
 % s: a structure with the following fields
 %
-%   Data_m0: The time series normalized to a mean of 0
+%   ts_m0: The time series normalized to a mean of 0
 %
-%   eigvals: The singular values of the time series. Each column 
-%       corresponds to a particular time series.
+%   singVals: The singular values of the time series.
 %
-%   eigvecs: The eigenvectors of each time series. Each dim1 x dim2 matrix
-%       represents the vectors for a particular time series. Each column of
-%       each matrix contains 1 eigenvector.
+%   singVecs: The singular vectors of each time series. Each column is a
+%       singular vector.
 %
-%   traj: The trajectory matrices constructed for the analyses. Each dim1 x
+%   T: The trajectory matrix constructed for the analyses. Each dim1 x
 %       dim2 matrix is the trajectory matrix for one time series.
+%
+%   C: The covariance matrix for the trajectory matrix.
 %
 %   expvar: The explained variance of each eigenvalue / eigenmode
 %
@@ -49,69 +61,71 @@ function[s] = SSA_Analysis(Data, M, algorithm, MC, noise, pval)
 %       matrix corresponds to a particular time series. Each column of each
 %       matrix contains 1 reconstructed component.
 %
-%   surrEig: The surrogate eigenvalues from the Monte Carlo test. dim1 is
-%       the Monte Carlo number, dim2 is the eigenvalue, dim3 is the time
-%       series.
+%   surrVals: The sorted surrogate eigenvalues from the Monte Carlo
+%       significance test.
 %
-%   sigEigDex: A boolean vector containing true/false indices for the
-%       eigenvalues that passed the MC_SSA significance test.
+%   isSigVal: A boolean vector containing true/false indices for the
+%       singular values that passed the MC_SSA significance test.
 %
-%   upperTail: A vector containing the surrogate eigenvalues from the
-%       MC_SSA on the high end of the significance tail.
+%   upSigVals: A vector containing the surrogate eigenvalues from the
+%       MC_SSA on the upper tail of the confidence interval.
 %
-%   lowerTail: A vector containing the surrogate eigenvalues from the
-%       MC_SSA on the low end of the significance tail
-%       tail of the MC_SSA
+%   lowSigVals: A vector containing the surrogate eigenvalues from the
+%       MC_SSA on the lower tail of the confidence interval.
 %
-%   maxFreq: The frequency with maximum power (using a periodogram) for
-%       each Data eigenvector.
+%   maxFreq: The frequency with maximum power (using a raw periodogram) for
+%       each singular vector. Note that this may not give good values for
+%       low frequencies.
 %
-%   maxPeriod: The period with maximum power (using a periodogram) for each
-%       Data eigenvector.
+%   maxPeriod: The period with maximum power (using a raw periodogram) for each
+%       singular vector. Note that this may not give good values for long
+%       periods.
 %
-%   metadata: A cell with (in this order) the trajectory algorithm, Monte
-%       Carlo number, noise type, and p value for the analysis.
+%   metadata: A cell with the trajectory algorithm, Monte Carlo number,
+%       noise type, and p value for the analysis.
 
+% Parse the inputs
+[showProgress, convergeTest] = parseInputs(varargin{:});
 
-%% Error check, get some startup values, set the vector of window sizes
-setup(Data, M);
+% Declare the initial structure
 s = struct();
 
-%% Run a simple SSA
-[s.eigvals, s.eigvecs, s.Data_m0, s.traj] = simpleSSA(Data, M, algorithm);
+% Run an SSA on the time series
+[s.singVals, s.singVecs, s.ts_m0, s.T, s.C] = simpleSSA(ts, M, algorithm);
 
-%% Get the RCs
-[s.RCs, ~] = getRCs( s.eigvecs, s.traj, algorithm);
+% Get the RCs
+[s.RCs, ~] = getRCs( s.singVecs, s.T, algorithm);
 
-%% Run an MC_SSA
-s.surrEig = MC_SSA(s.Data_m0, s.eigvecs, MC, noise, M, algorithm);
+% Run an MC_SSA
+[s.surrVals, s.iterSigVals, s.iterTrueConf] = ...
+    MC_SSA(s.ts_m0, s.singVecs, MC, noise, M, algorithm, pval, showProgress, convergeTest);
 
-%% Do a significance test using the surrogate eigenvectors
-[s.sigEigDex, s.upperTail, s.lowerTail] = sigTestMCSSA(pval, s.eigvals, s.surrEig);
+% Do a significance test using the surrogate eigenvectors
+[s.isSigVal, s.upSigVals, s.lowSigVals] = sigTestMCSSA(pval, s.singVals, s.surrVals);
 
-%% Get the periods/frequencies with maximum power from the data eigenvectors
-s.maxFreq = NaN(size(s.eigvals));
-s.maxPeriod = s.maxFreq;
-for k = 1:size(s.eigvals,2)
-    [s.maxFreq, s.maxPeriod] = maxFreqPeriod( s.eigvecs(:,:,k));
-end
+% Get the periods/frequencies with maximum power from the singular vectors
+[s.maxFreq, s.maxPeriod] = maxFreqPeriod(s.singVecs);
 
-%% Assign the metadata
-s.metadata = {algorithm, MC, noise, pval};
+% Assign the metadata
+s.metadata = [{'algorithm';'MC';'noise';'pval'}, {algorithm; MC; noise; pval}];
 
 end
 
-% ----- Helper functions -----
-function[] = setup(Data, M)
+function[showProgress, convergeTest] = parseInputs(varargin)
+inArgs = varargin;
+showProgress = 'noProgress';
+convergeTest = 'convergeTest';
 
-% Ensure that Data is not 3D or greater
-if ~ismatrix(Data)
-    error('SSA_Analysis is for 2D collections of time series only.');
+if ~isempty(inArgs)
+    for k = 1:length(inArgs)
+        arg = inArgs{k};
+        if strcmpi(arg, 'showProgress')
+            showProgress = arg;
+        elseif strcmpi(arg, 'noConvergeTst')
+            convergeTest = arg;
+        else
+            error('Unrecognized input');
+        end
+    end
 end
-
-% Ensure M is singular
-if length(M) ~= 1
-    error('M must be singular');
-end
-
 end

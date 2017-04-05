@@ -109,7 +109,7 @@ if ~isempty(inArgs)
     for k = 1:length(inArgs)
         arg = inArgs(k);
 
-        if dataType == 'vector' && k==1
+        if strcmpi(dataType,'vector') && k==1
             % Do nothing, we already assigned nSeries
         elseif strcmpi(arg, 'noScaling')
             scaling = false;

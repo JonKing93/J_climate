@@ -1,4 +1,4 @@
-function[s] = SSA_Sig( s, xType, periodUnit)
+function[s] = SSAsigplot( s, xType, periodUnit)
 %% Makes a plot of data eigenvalues vs Monte Carlo values and plots the
 % desired significance line. Determines the significant frequencies and
 % periods.
@@ -27,7 +27,7 @@ function[s] = SSA_Sig( s, xType, periodUnit)
 % ---
 % Jonathan King, 2017
 
-nseries = size(s.eigvals,2);
+nseries = size(s.singVals,2);
 
 if strcmpi(xType, 'freq')
     xVar = s.maxFreq;
@@ -39,26 +39,24 @@ else
     error('Unrecognized xType');
 end
 
-%A tweak
-for k = 1:nseries
-    figure();clf;hold on;
-    
-    % Plot the range of surrogate eigenvalues within the confidence
-    % interval tails of the Monte Carlo tests
-    for m = 1:size(s.eigvals,1)
-        ax1 = semilogy([xVar(m), xVar(m)], [s.lowerTail(m,k), s.upperTail(m,k)], 'k');
-    end
+figure();clf;hold on;
 
-    % Add the data eigenvalues
-    ax2 = semilogy( xVar, s.eigvals(:,k), 'rd');
-    
-    % Make the significant eigenvalues blue
-    ax3 = semilogy( xVar(s.sigEigDex), s.eigvals(s.sigEigDex,k), 'bd');
+% Plot the range of surrogate eigenvalues within the confidence
+% interval tails of the Monte Carlo tests
+for m = 1:size(s.singVals,1)
+    ax1 = semilogy([xVar(m), xVar(m)], [s.lowSigVals(m), s.upSigVals(m)], 'k');
+end
 
-    % Add labels etc.
-    legend([ax1,ax2,ax3],'Monte Carlo 95% Confidence Interval','Data Eigenvalues','Significant Eigenvalues');
-    title(sprintf('Comparison of data eigenvalues with monte carlo eigenvalues for time series %i',k));
-    xlabel(sprintf('Eigenvalue %s', xStr));
-    ylabel('Eigenvalue Power');
+% Add the data eigenvalues
+ax2 = semilogy( xVar, s.singVals, 'rd');
+
+% Make the significant eigenvalues blue
+ax3 = semilogy( xVar(s.isSigVal), s.singVals(s.isSigVal), 'bd');
+
+% Add labels etc.
+legend([ax1,ax2,ax3],'Monte Carlo 95% Confidence Interval','Data Eigenvalues','Significant Eigenvalues');
+title('Comparison of data eigenvalues with monte carlo eigenvalues.');
+xlabel(sprintf('Eigenvalue %s', xStr));
+ylabel('Eigenvalue Power');
 
 end
