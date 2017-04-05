@@ -74,10 +74,12 @@ function[s] = SSA_Analysis(ts, M, algorithm, MC, noise, pval, varargin)
 %       MC_SSA on the lower tail of the confidence interval.
 %
 %   maxFreq: The frequency with maximum power (using a raw periodogram) for
-%       each singular vector.
+%       each singular vector. Note that this may not give good values for
+%       low frequencies.
 %
 %   maxPeriod: The period with maximum power (using a raw periodogram) for each
-%       singular vector.
+%       singular vector. Note that this may not give good values for long
+%       periods.
 %
 %   metadata: A cell with the trajectory algorithm, Monte Carlo number,
 %       noise type, and p value for the analysis.
