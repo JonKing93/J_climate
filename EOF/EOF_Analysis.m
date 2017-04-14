@@ -168,7 +168,7 @@ function[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin)
 inArgs = varargin;
 
 % Set defaults
-showProgress = 'noProgress';
+showProgress = 'blockProgress';
 svdArgs = {'svd'};
 blockMC = false;
 convergeTest = true;

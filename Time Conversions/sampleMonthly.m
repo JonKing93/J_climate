@@ -1,7 +1,7 @@
 function[sM] = sampleMonthly(date, dayType, leapType)
 %% Samples a set of times on monthly intervals.
 %
-% [sM] = sampleMonthly(time, timeType, dayType, includeLeap)
+% [sM] = sampleMonthly(time, dayType, includeLeap)
 % samples a time vector, which has a type specified by timeType, on monthly
 % intervals at either the first, last, or middle day of each month, as
 % specified by dayType. Adjusts dates for leap vs no leap day years.
