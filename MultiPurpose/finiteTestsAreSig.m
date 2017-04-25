@@ -1,118 +1,104 @@
-function[isSig, nNeeded] = finiteTestsAreSig( nTests, nPass, p )
-%% Returns a boolean to determine whether a finite number of passed 
-% significance tests are acutally significant at the given significance
-% levels.
+function[outArg] = finiteTestsAreSig( nTests, p, varargin)
+%% Determines whether a finite number of passed significance tests remain
+% significant at the tested significance level.
 %
-% [isSig] = finiteTestsAreSig( nTests, nPass, p )
+% [nNeeded] = finiteTestsAreSig(nTests, p)
+% Returns the minimum number of passed tests required to maintain significance
+% when performing nTests significance tests at the significance level p.
+%
+% [isSig] = finiteTestsAreSig(nTests, p, nPass)
+% Returns a boolean for whether a given number of passed significance tests
+% remain significant at the tested signifcance level.
+%
 %
 % ----- Inputs -----
 % 
-% nTests: The number of significance tests
+% nTests: The number of significance tests performed at a significance level, p
 %
-% nPass: A vector conatining the number of significance tests that pass 
-%   each significance level p
+% p: The significance level used in the tests. p must be on the interval (0,1).
 %
-% p: A vector containing the significance levels. (e.g. p = 0.05 is 95%
-%   significant). Each p values must be on the interval (0,1)
+% nPass: The number of tests that pass the significance level.
+%
 %
 % ----- Outputs -----
 %
-% isSig: a boolean vector determining whether the tests still pass each
-% significance level p
+% isSig: a boolean determining whether the tests, in total, still pass the
+%       significance level p
 %
-% nNeeded: The number of passed tests required to exceed each significance
-% level.
+% nNeeded: The minimum number of passed tests required to remain above the
+%       significance level.
 %
-% ----- Sources -----
+% ----- References -----
 %
-% Livezney and Chen (1983)
-%
-% ----- Author -----
-%
-% Jonathan King, 2017
+% Livezey, R. E., & Chen, W. Y. (1983). Statistical field significance and 
+%   its determination by Monte Carlo techniques. Monthly Weather Review, 111(1), 46-59.
 
-% Initial error checking
-[npvals] = setup(nTests, nPass, p);
+% Initial error checking, parsing inputs
+[nPass] = setup(nTests, nPass, varargin{:});
 
-% Calculate the binomial distribution probability for passing this many
-% tests at the significance level.
-pcount = 1;
-nNeeded = NaN(npvals,1);
+% Get the cumulative Probability of the Number of Passed Tests
+cumProb = 0;
+for k = nTests :-1: 0 
 
-% For each pvalue
-for q = p
+    % Get each coefficient of the binomial expansion. Use exp(gammaln...) 
+    % instead of nchoosek to avoid numerical precision errors for large coefficients.
+    pnpt = exp( gammaln(nTests+1) - gammaln(k+1) - gammaln(nTests-k+1)) * ...
+        p^k * (1-p)^(nTests-k);
 
-    % Get the probability for each number of passed tests (pnpt). Each
-    % value pnpt is one term in the binomal probability expansion.
-    prob = 0;
-    for k = nTests :-1: 0 
-        % Get the probability of the number of passed tests (pnpt)    
-        % (this is each term of the binomial expansion...)
+    % Get the sum to calculate the total probability.
+    cumProb = pnpt + cumProb;
 
-        % Use exp(gammaln...) instead of nchoosek to avoid numerical precision errors
-        % for large coefficients.
-        pnpt = exp( gammaln(nTests+1) - gammaln(k+1) - gammaln(nTests-k+1)) * ...
-            q^k * (1-q)^(nTests-k);
-
-        % Get the sum to calculate the total probability.
-        prob = pnpt + prob;
-
-        % When the binomial probability exceeds the desired confidence level...
-        if prob > q
-            % Exit the loop
-            break;
-        end
+    % When the binomial probability exceeds the desired significance level...
+    if cumProb > p
+        % Exit the loop
+        break;
     end
-
-    % Move k to the previous value. This is the number of passed tests 
-    % needed to maintain significance at the desired p value.
-    nNeeded(pcount) = k+1;
-    pcount = pcount + 1;
-    
 end
 
-% Check if the number of passed tests remains significant
-isSig = (nPass >= nNeeded);
+% Move k to the previous value. This is the minimum number of passed tests 
+% needed to maintain significance at the desired p value.
+nNeeded = k+1;
+
+% Return the desired output
+if nargin == 2
+    outArg = nNeeded;
+elseif nargin == 3
+    outArg = ( nPass >= nNeeded );
+else
+    error('Incorrect number of inputs');
+end
 
 end
 
 % ----- Helper Functions -----
-function[npval] = setup(nTests, nPass, p)
-
-% Check p is a vector
-if ~isvector(p)
-    error('p must be a vector');
-end
+function[nPass] = setup(nTests, p, varargin)
 
 % Ensure p is between 0 and 1
-if any(p < 0 | p > 1)
+if p < 0 || p > 1
     error('p values must be between 0 and 1');
 end
 
 % Ensure test numbers are positive
-if nTests < 1
-    error('The number of tests must be positive');
+if nTests < 1 || mod(nTests,1)~=0
+    error('The number of tests must be a positive integer');
 end
 
-% Check that nPass is a vector
-if ~isvector(nPass)
-    error('nPass must be a vector');
-end
-
-if any(nPass) < 0
-    error('The number of passed tests cannot be negative');
-end
-
-% Ensure nPass is within the bounds of nTests
-if any(nPass) > nTests
-    error('The number of passed tests cannot exceed the number of tests');
-end
-
-% Check that nPass and p are the same length
-lnPass = length(nPass);
-npval = length(p);
-if lnPass ~= npval
-    error('The nPass and p vectors must be the same length');
+% If given, get nPass, otherwise set to NaN
+if ~isempty(varargin)
+    if length(varargin) > 1
+        error('Too many inputs');
+    else
+        nPass = varargin{1};
+    end
+    
+    % Error check nPass
+    if any(nPass) < 0
+        error('The number of passed tests cannot be negative');
+    elseif mod(nPass,1)~=0
+        error('The numbre of passed tests must be an integer');        
+    end
+else
+    nPass = NaN;
 end
 
 end
