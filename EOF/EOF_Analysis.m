@@ -1,4 +1,4 @@
-function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
+function[s] = EOF_Analysis(Data, matrix, varargin)
 %% Performs a full EOF Analysis of a data set.
 % 
 % [s] = EOF_Analysis(Data, matrix, MC, noiseType, pval)
@@ -112,7 +112,7 @@ function[s] = EOF_Analysis(Data, matrix, MC, noiseType, pval, varargin)
 %       Contains: matrix, MC, noisetype, pval, and any additional flags.
 
 % Parse Inputs, all error checking will occur in called functions
-[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin{:});
+[MC, noiseType, pval, showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin{:});
 
 % Declare the intial structure
 s = struct();
@@ -129,18 +129,20 @@ s.scaledSignals = scaleSignals(s.signals, s.eigVals);
 % Rule N, and rotation require significance testing to continue
 if ~blockMC
 
-    % Run Rule N, with or without convergence testing.
-    if convergeTest  % with convergence testing
+    % Run Rule N...
+    if convergeTest                 % ... with convergence testing
         [s.nSig, s.randEigvals, s.thresh, s.trueConf, s.iterSigEigs, s.iterTrueConf] = ...
                 ruleN(Data, matrix, s.expVar, MC, noiseType, pval, svdArgs, showProgress);
-    else    % No convergence testing
+    
+    else                            % ... without convergence testing
         [s.nSig, s.randEigvals, s.thresh, s.trueConf] = ...
             ruleN(Data, matrix, s.expVar, MC, noiseType, pval, svdArgs, showProgress, 'noConvergeTest');
     end
     
-    % Perform a Varimax rotation of significant modes.
-    if s.nSig < 2   
-    % Less than 2 significant modes, cannot rotate, do nothing
+    % Perform a Varimax rotation
+    if s.nSig < 2  % Less than 2 significant modes, rotation is not possible
+        % Do nothing
+        
     else 
         % Scale the eigenvectors
         s.scaModes = scaleModes( s.modes(:,1:s.nSig), s.eigVals(1:s.nSig));
@@ -164,10 +166,13 @@ s.metadata = [{'matrix';'MC';'noiseType';'svdArgs';'sigTest';'convergeTest'},...
 end
 
 %%%%% Helper Functions %%%%%
-function[showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin)
+function[MC, noiseType, pval, showProgress, svdArgs, blockMC, convergeTest] = parseInputs(varargin)
 inArgs = varargin;
 
 % Set defaults
+MC = NaN;
+noiseType = NaN;
+pval = NaN;
 showProgress = 'blockProgress';
 svdArgs = {'svd'};
 blockMC = false;
@@ -175,33 +180,72 @@ convergeTest = true;
 
 % Get input values
 if ~isempty(inArgs)
+    
+    % Set flag switches to false
     isSvdsArg = false;
+    isNoiseType = false;
+    isPval = false;
     
     % Get each input
     for k = 1:length(inArgs)
         arg = inArgs{k};
         
-        if isSvdsArg
+        % Set MC if using rule N
+        if (k==1) && ~strcmpi(arg, 'noSigTest')
+            if length(inArgs) < 3
+                error('Insufficient parameters given for Rule N test');
+            else
+                MC = arg;
+                isNoiseType = true;
+            end    
+            
+        % Get noisetype
+        elseif isNoiseType
+            noiseType = arg;
+            isPval = true;
+            isNoiseType = false;
+            
+        % Get the p value
+        elseif isPval
+            pval = arg;
+            isPval = false;    
+            
+        % Get svd Args
+        elseif isSvdsArg
             if isscalar(arg) || strcmpi(arg,'econ')
                 svdArgs = {'svds', arg};
             else
                 error('The svds flag must be followed by nEigs or the ''econ'' flag');
             end
+            
+        % Decide whether to show the MC iteration
         elseif strcmpi(arg, 'showProgress') 
             showProgress = 'showProgress';
+            
+        % Decide whether to perform the ruleN significance test
         elseif strcmpi(arg, 'noSigTest')
             blockMC = true;
+            
+        % Decide whether to save data on Monte Carlo convergence
         elseif strcmpi(arg, 'noConvergeTest')
             convergeTest = false;
+            
+        % Note that the next input is the svd Arg
         elseif strcmpi(arg, 'svds')
             if length(inArgs) >= k+1
                 isSvdsArg = true;
             else
                 error('The svds flag must be followed by nEigs or the ''econ'' flag');
             end
+            
+        % Anything else
         else
             error('Unrecognized Input');
         end
     end
-end       
+    
+% Must have at least some inputs
+else
+    error('Insufficient inputs');
+end
 end             
