@@ -3,8 +3,8 @@ function[eigVals, modes, expVar, Datax0, C] = simpleEOF(Data, matrix, varargin)
 % 
 % [eigVals, modes, expVar, Datax0, C] = simpleEOF(Data, matrix)
 %
-% [...] = simpleEOF(Data, matrix, 'svds', 'econ')
-% Uses an economy sized svds decomposition rather than the full svd.
+% [...] = simpleEOF(Data, matrix, 'econ')
+% Uses an economy sized svd decomposition rather than the full svd.
 %
 % [...] = simpleEOF(Data, matrix, 'svds', nEigs)
 % Uses the svds decomposition and determines the first nEigs eigenvalues.
@@ -74,23 +74,25 @@ inArgs = varargin;
 svdArgs = {'svd'};
 
 if ~isempty( inArgs)
-    svdsArg = false;
+    isSvdsArg = false;
     for k = 1:length(inArgs)
         arg = inArgs{k};
         
-        if svdsArg
-            if isscalar(arg) || strcmpi(arg, 'econ')
+        if isSvdsArg
+            if isscalar(arg)
                 svdArgs = {'svds',arg};
             else
-                error('The svds flag must be followed by a positive integer or the ''econ'' flag');
-            end        
+                error('The nEigs parameter must be a positive integer');
+            end
+        elseif strcmpi(arg, 'econ')
+            svdArgs = {'svd', 'econ'};            
         elseif strcmpi(arg, 'svd')
             % Do nothing
         elseif strcmpi(arg, 'svds')
             if length(inArgs) >= k+1
-                svdsArg = true;
+                isSvdsArg = true;
             else
-                error('The svds flag must be followed by a positive integer or the ''econ'' flag');
+                error('The svds flag must be followed by the nEigs parameter');
             end
         else
             error('Unrecognized Input');

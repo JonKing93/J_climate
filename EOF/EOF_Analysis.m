@@ -7,19 +7,18 @@ function[s] = EOF_Analysis(Data, matrix, varargin)
 % and rotates the significant modes according to VARIMAX criterion. Returns
 % all calculated values in a structure, s.
 %
+% [s] = EOF_Analysis(Data, matrix, 'noSigTest')
+% A flag to block the Rule N significance testing. The returned structure
+% will not contain any fields requiring the significance test.
+%
 % [s] = EOF_Analysis(..., 'showProgress')
 % Displays the current Monte Carlo iteration onscreen.
 %
-% [s] = EOF_Analysis(..., 'svds', 'econ')
-% Performs the economy sized svds decomposition rather than the default
-% svd.
+% [s] = EOF_Analysis(..., 'econ')
+% Performs the economy sized svd decomposition rather than the full svd.
 %
 % [s] = EOF_Analysis(..., 'svds', nModes)
 % Uses the svds decomposition and determines the first nModes modes.
-%
-% [s] = EOF_Analysis(..., 'noSigTest')
-% A flag to block the Rule N significance testing. The returned structure
-% will not contain any fields requiring the significance test.
 %
 % [s] = EOF_Analysis(..., 'noConvergeTest')
 % A flag to block the test for Monte Carlo convergence. The returned
@@ -126,7 +125,7 @@ s.signals = getSignals(s.Datax0, s.modes);
 % Scale the signals to the standardized data
 s.scaledSignals = scaleSignals(s.signals, s.eigVals);
 
-% Rule N, and rotation require significance testing to continue
+% If testing significance...
 if ~blockMC
 
     % Run Rule N...
@@ -210,13 +209,17 @@ if ~isempty(inArgs)
             pval = arg;
             isPval = false;    
             
-        % Get svd Args
+        % Get svds Args
         elseif isSvdsArg
-            if isscalar(arg) || strcmpi(arg,'econ')
+            if isscalar(arg)
                 svdArgs = {'svds', arg};
             else
-                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+                error('The svds flag must be followed by nModes');
             end
+            
+        % Decide whether to do the economy sized decomposition
+        elseif strcmpi(arg, 'econ')
+            svdArgs = {'svd', 'econ'};
             
         % Decide whether to show the MC iteration
         elseif strcmpi(arg, 'showProgress') 

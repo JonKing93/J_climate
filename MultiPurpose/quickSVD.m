@@ -4,8 +4,11 @@ function[eigvals, eigvecs] = quickSVD(C, varargin)
 % [eigvals, eigvecs] = quickSVD(C)
 %   performs a full SVD on a matrix.
 %
-% [...] = quickSVD(C, 'svds', 'econ')
-% Uses an economy sized svds decomposition rather than the full svd.
+% [...] = quickSVD(C, 'svd', 'econ')
+% Uses an economy sized svd decomposition rather than the full svd.
+%
+% [...] = qucikSVD(C, 'econ')
+% Also performs the economy sized svd decomposition.
 %
 % [...] = quickSVD(C, 'svds', nEigs)
 % Uses the svds decomposition and determines the first nEigs eigenvalues.
@@ -26,7 +29,7 @@ function[eigvals, eigvecs] = quickSVD(C, varargin)
 %       eigenvector.
 
 % Parse Inputs
-[svdFunc, svdsArg] = parseInputs( varargin{:});
+[svdFunc, svdArg] = parseInputs( varargin{:});
 
 % Error check
 errCheck(C);
@@ -34,10 +37,14 @@ errCheck(C);
 % Run the SVD on each matrix
 switch svdFunc
     case 'svd'
-        [~,S,V] = svd(C);
+        if ~isnan(svdArg)
+            [~,S,V] = svd(C, svdArg);  % Economy sized svd
+        else
+            [~,S,V] = svd(C);          % Full svd
+        end
 
     case 'svds'
-        [~,S,V] = svds(C, svdsArg); 
+        [~,S,V] = svds(C, svdArg);     % Svds with nEigs
 end
 
 % Pull the eigenvalues off of the diagonal
@@ -50,12 +57,12 @@ end
     
     
 %%%%% Helper Functions %%%%%
-function[svdFunc, svdsArg] = parseInputs( varargin)
+function[svdFunc, svdArg] = parseInputs( varargin)
 inArgs = varargin;
 
 % Set the defaults
 svdFunc = 'svd';
-svdsArg = NaN;
+svdArg = NaN;
 
 if ~isempty(inArgs)
     isSvdsArg = false;
@@ -64,19 +71,22 @@ if ~isempty(inArgs)
         arg = inArgs{k};
        
         if isSvdsArg
-            if isscalar(arg) || strcmpi(arg,'econ')
+            if isscalar(arg)
                 svdFunc = 'svds';
-                svdsArg = arg;
+                svdArg = arg;
             else
-                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+                error('The svds flag must be followed by nEigs');
             end
+        elseif strcmpi(arg, 'econ')
+            svdFunc = 'svd';
+            svdArg = 'econ';            
         elseif strcmpi(arg,'svd')
             % Do nothing
         elseif strcmpi(arg, 'svds') 
             if length(inArgs)>=k+1
                 isSvdsArg = true;
             else
-                error('The svds flag must be followed by nEigs or the ''econ'' flag');
+                error('The svds flag must be followed by nEigs');
             end            
         else
             error('Unrecognized Input');
