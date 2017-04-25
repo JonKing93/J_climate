@@ -34,7 +34,7 @@ function[outArg] = finiteTestsAreSig( nTests, p, varargin)
 %   its determination by Monte Carlo techniques. Monthly Weather Review, 111(1), 46-59.
 
 % Initial error checking, parsing inputs
-[nPass] = setup(nTests, nPass, varargin{:});
+[nPass] = setup(nTests, p, varargin{:});
 
 % Get the cumulative Probability of the Number of Passed Tests
 cumProb = 0;
