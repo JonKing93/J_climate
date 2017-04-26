@@ -118,11 +118,6 @@ if ~isvector(ts)
     error('ts must be a vector');
 end
 
-% Ensure the field is at least a vector
-if ~ismatrix(field)
-    error('field must be a matrix');
-end
-
 % Ensure that ts and field have the same lengths
 lTS = numel(ts);
 if lTS ~= sField(fieldDim)
