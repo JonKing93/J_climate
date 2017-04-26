@@ -23,6 +23,7 @@ function[sigP, passTest] = fdr(p, q, varargin)
 %       that are falsely rejected and attributed as significant. q must be 
 %       on the interval (0,1)
 %
+%
 % ----- Outputs -----
 %
 % sigP: A sorted column vector of the p values that pass the false
@@ -31,15 +32,22 @@ function[sigP, passTest] = fdr(p, q, varargin)
 % passTest: A boolean array with the same dimensions as p. True at
 %       locations that pass the false discovery rate criterion.
 %
+%
 % ----- References -----
 %
 % Benjamini, Y. & Hochberg, Y. (1995) Controlling the false discovery rate:
 %   A practical and powerful approach to multiple testing. Journal of the 
 %   Royal Statistical Society, Series B (Methodological). 57(1), 289-300. 
 %
-% 
+% Benjamini, Y. & Yekutieli, D. (2001) The control of the false discovery 
+%   rate in multiple testing under dependency. The Annals of Statistics. 
+%   29(4), 1165-1188. 
 %
-%
+% A review on multiple comparisons including FDR:
+%   Groppe, D.M., Urbach, T.P., & Kutas, M. (2011) Mass univariate analysis
+%       of event-related brain potentials/fields I: A critical tutorial review. 
+%       Psychophysiology, 48(12) pp. 1711-1725, DOI: 10.1111/j.1469-8986.2011.01273.x 
+
 
 % Parse the inputs and do error checking
 [posDependent] = parseInputs(varargin{:});
@@ -52,7 +60,7 @@ errCheck(p,q);
 pvec = sort(pvec);
 
 % Remove any NaN entries
-pvec = pvec(~isnan);
+pvec = pvec(~isnan(pvec));
 
 % Get the total number of p values
 m = numel(pvec);
