@@ -1,6 +1,7 @@
 function[outArg] = finiteTestsAreSig( nTests, p, varargin)
-%% Determines whether a finite number of passed significance tests remain
-% significant at the tested significance level.
+%% Accounts for the effects of multiple comparisons to determine whether
+% a finite number of passed significance tests remain significant at the
+% tested significance level.
 %
 % [nNeeded] = finiteTestsAreSig(nTests, p)
 % Returns the minimum number of passed tests required to maintain significance
@@ -28,10 +29,16 @@ function[outArg] = finiteTestsAreSig( nTests, p, varargin)
 % nNeeded: The minimum number of passed tests required to remain above the
 %       significance level.
 %
+%
 % ----- References -----
 %
 % Livezey, R. E., & Chen, W. Y. (1983). Statistical field significance and 
 %   its determination by Monte Carlo techniques. Monthly Weather Review, 111(1), 46-59.
+%
+%
+% ----- Written By -----
+%
+% Jonathan King, 2017, University of Arizona, jonkin93@email.arizona.edu
 
 % Initial error checking, parsing inputs
 [nPass] = setup(nTests, p, varargin{:});
@@ -73,6 +80,10 @@ end
 % ----- Helper Functions -----
 function[nPass] = setup(nTests, p, varargin)
 
+if ~isscalar(nTests) || ~isscalar(p)
+    error('nTests and p must be scalars');
+end
+
 % Ensure p is between 0 and 1
 if p < 0 || p > 1
     error('p values must be between 0 and 1');
@@ -95,7 +106,7 @@ if ~isempty(varargin)
     if any(nPass) < 0
         error('The number of passed tests cannot be negative');
     elseif mod(nPass,1)~=0
-        error('The numbre of passed tests must be an integer');        
+        error('The number of passed tests must be an integer');        
     end
 else
     nPass = NaN;

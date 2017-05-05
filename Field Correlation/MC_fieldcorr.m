@@ -6,19 +6,19 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 %
 % [nNeeded, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field2D, MC, noiseType, p)
 % Computes the number of passed significance tests required for the field
-% correlation to remain above the significance level p. Performs a test on
-% the convergence on the Monte Carlo method.
+% correlation to remain above the significance level p given observed spatial
+% interdependence. Also tests the convergence on the Monte Carlo method.
 %
 % [isSig, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field2D, MC, noiseType, p, nPassed)
 % Returns a boolean for whether the given number of passed tests remains
-% above the significance level p. Performs a convergence test.
+% above the significance level p. Also tests Monte Carlo convergence.
 %
 % [...] = MC_fieldcorr(..., 'corrArgs', {corrArgs})
 % Performs the test using alternative parameters for the "corr" function. 
 % See the help section of "corr" for details.
 %
 % [nNeeded/isSig] = MC_fieldcorr(..., 'noConvergeTest')
-% Blocks testing of the Monte Carlo convergence test.
+% Blocks testing of Monte Carlo convergence.
 %
 %
 % ----- Inputs -----

@@ -20,8 +20,8 @@ function[sigP, passTest] = fdr(p, q, varargin)
 %       discovery rate tests.
 %
 % q: The rate of false discovery. This is the percent of null hypotheses
-%       that are falsely rejected and attributed as significant. q must be 
-%       on the interval (0,1)
+%       that are falsely rejected and attributed as significant. (q = 0.05
+%       is a commonly used value.) q must be on the interval (0,1)
 %
 %
 % ----- Outputs -----
@@ -87,7 +87,11 @@ k = find(passTest, 1, 'last');
 sigP = pvec(1:k);
 
 % Get the boolean mask for the original p array
-passTest =  (  p <= sigP(end)  );
+if isempty(sigP)
+    passTest = false( size(p) );
+else
+    passTest =  (  p <= sigP(end)  );
+end
 
 end
 
