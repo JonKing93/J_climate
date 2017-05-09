@@ -1,105 +1,78 @@
-function[corrmaps, pmaps, isSig] = lagFieldcorr( ts, tsIndices, field, fieldIndices, lags, pvals, varargin)
-%% Computes lagged or leading correlation coefficients for a time series and a field.
-% Also tests the significance of the correlations.
+function[corrmaps, pmaps] = lagFieldcorr( ts, iTS, field, iField, lags, varargin)
+%% Lags or leads a time series relative to a field and computes correlation
+% coefficients and corresponding p-values.
 % 
-% [corrmaps, pmaps, isSig] = fieldcorr(ts, tsIndices, field, fieldIndices, lags, pvals, MC, noiseType)
-% computes timeseries-field correlation coefficients at specified lags and 
-% and tests whether correlation coefficients remain significant at a given
-% level given a finite number of tests AND spatial reduction of degrees of
-% freedom in a highly correlated field.
-%
-% [...] = fieldcorr(ts, tsIndices, field, fieldIndices, lags, pvals, 'noSpatial')
-% suppresses significance testing with respect to spatial reduction of
-% degrees of freedom.
+% [corrmaps, pmaps, isSig] = lagFieldcorr(ts, iTS, field, iField, lags)
+% Computes timeseries-field correlation coefficients and p-values at specifed
+% lags and leadsof the time series.
 % 
-% [...] = fieldcorr(..., indexBounds)
-% specifies a subset of indices over which to perform calculations.
+% [...] = lagFieldcorr(..., 'fixedN')
+% Restricts the size of the analyzed vector to ensure that correlations and 
+% p-values are calculated using the same sample size for all leads and lags.
 %
-% [...] = lagFieldcorr(..., lagType)
-% specifies whether to lag/lead the time series or the field. (By default,
-% lags and leads are applied to the time series.)
+% [...] = lagFieldcorr(..., 'restrictBounds', iBounds)
+% Specifies a specific subset of indices over which a 0-lag correlation
+% would be computed. All lags and leads are applied to the restricted
+% time series vector.
 %
-% [...] = fieldcorr(..., fieldDim)
-% performs calculations along a specified dimension of the field. 
+% [...] = lagFieldcorr(..., 'fieldDim', d)
+% performs calculations along a specified dimension of the field. By
+% default, correlations will be calculated along the first dimension.
+%
+% [...] = lagFieldcorr(..., 'corrArgs', {corrArgs})
+% Computes correlations using alternative parameters for the "corr"
+% function. See the help section of "corr" for details.
 %
 %
 % ----- Inputs -----
 % 
 % ts: a time series vector.
 %
-% tsIndices: a set of time indices that overlap with fieldIndices
+% iTS: a set of time indices for time series. See the assignLagIndices function.
 %
 % field: A field. The time series at individual points in the field should
 %   have the same length as ts. Field may be n-dimensional. By default,
 %   fieldcorr assumes that the time series is along the first
-%   dimension. (See the fieldDim argument if this is not the case)
+%   dimension.
 %
-% fieldIndices: A set of time indices for the field. These must overlap
-%    with the tsIndices.
+% iField: A set of time indices for the field. These must overlap
+%    with the tsIndices. See the assignLagIndices function.
 %
 % lags: The desired lags (negative integers) and leads (positive integers)
-%   at which to compute correlation coefficients. Lags and leads will shift
-%   ts and/or field along the appropriate indices. (e.g. lags = [-3 0 10]
+%   at which to compute correlation coefficients. (e.g. lags = [-3 0 10]
 %   will calculate the correlation with a lag of 3 indices, no lags, and
-%   lead of 10 indices.
+%   lead of 10 indices for the time series.) Note that lagging the 
+%   timeseries is equivalent to leading the field.
 %
-% lagType: A switch specifying whether to lag/lead the time series or  field.
-%       'ts': Lag/Lead the time series
-%       'field': Lag/Lead the field
-%
-% pvals: A vector containing the p values of interest. (e.g. p = 0.05 
-%   corresponds to the 95% confidence level. Correlation coefficients are
-%   tested for significance at pval levels using Monte Carlo sampling.
-%
-% 'noSpatial': A flag to suppress significance testing with respect to
-%   spatial loss of degrees of freedom.
-%
-% MC: The number of Monte Carlo simulations to use in spatial significance
-%   testing.
-%
-% noisetype: The type of noise in the Monte Carlo time series.
-%    'white': White Gaussian noise
-%    'red': Red lag-1 autocorrelated noise with added Gaussian white noise
-%
-% indexBounds: A vector of two integers. Restricts the calculations to a
-%   specific subset of indices. If unspecified, correlations are calculated
-%   over ALL overlapping indices +/- leads and lags. 
-%   (e.g. indexBounds = [48, 109] will restrict calculations to time
-%   indices from 48-109 +/- lags and leads)
+% indexBounds: A vector containing the minimum and maximum indices over
+%   which to define a 0-lagged correlation.
 %
 % fieldDim: (Default = 1) A scalar, specifies the dimension of the field on
 %   which to perform the field correlation.
 %
+% corrArgs: A cell containing alternative parameters for the "corr"
+%       function, see the "corr" help section for details.
+%
 %
 % ----- Outputs -----
 %
-% corrmaps: A N+1D array displaying the correlation coefficients at each
+% corrmaps: An (n+1)D array displaying the correlation coefficients at each
 %   point of the field for each lag/lead. Different Lags and leads are
 %   stored along the last dimension.
 %
 % pmap: Displays the p value of the correlation coefficient for each point
 %   on the field. Lags and Leads are stored along the last dimension
 %
-% isSig: A logical matrix corresponding to each input p-value. A value of
-%   true indicates a correlation is significant at the corresponding.
-%   Each column contains the values for a particular lag or lead.
 %
+% ----- Written By -----
 %
-% ----- Additional Reading -----
-%
-% Livezney and Chen (1983)
-%
-%
-% -----
-% Jonathan King, 2017
+% Jonathan King, 2017, University of Arizona, jonking93@email.arizona.edu
 
-%% Parse inputs, error checking, preallocation sizes, etc.
-
-% Parse the inputs
-[inArgs, fieldDim, restrict, indexBounds, lagTS] = parseInputs( varargin{:});
+% Parse inputs, error checking, preallocation sizes, etc.
+[fixN, iBounds, dim, corrArgs] = parseInputs(varargin{:});
 
 % Error check, get overlapping time indices
-[iTS, iField] = setup(tsIndices, fieldIndices, lags, indexBounds, lagTS, restrict);
+[iTS, iField] = setup(iTS, iField, lags, indexBounds, lagTS, restrict);
 
 % Reshape the field into a 2D matrix along the dimension of interest
 [field, dSize, dOrder] = dimNTodim2(field, fieldDim);
@@ -114,7 +87,6 @@ pmaps = NaN( 1, sField(2), nLags  );
 isSig = NaN( nPvals, nLags);
 
 
-%% Get the initial (non-lagged/non-leading) indices of interest
 
 
 
@@ -149,55 +121,15 @@ end
 
 % ----- Helper Functions -----
 
-% Reads variable inputs
-function[inArgs, fieldDim, restrict, indexBounds, lagTS] = parseInputs(varargin)
+function[fixN, iBounds, dim, corrArgs] = parseInputs(varargin)
+inArgs = varargin;
 
 % Set defaults
-fieldDim = 1;
-restrict = false;
-indexBounds = NaN;
-lagTS = true;
+fixN = false;
+iBounds = [];
+dim = 1;
+corrArgs = {}
 
-% Set other inputs
-if isempty(varargin)
-    error('Insufficient input arguments');
-end
-
-% Get the fieldcorr arguments separately
-if strcmpi( varargin{1}, 'noSpatial')
-    inArgs = varargin(1);
-    iArg = 2;
-else
-    inArgs = varargin(1:2);
-    iArg = 3;
-end
-
-% Set the lag field corr variables
-lagSet = false;
-dimSet = false;
-boundSet = false;
-
-while length(varargin) >= iArg 
-    arg = varargin{iArg};
-    
-    if strcmpi(arg, 'ts') && ~lagSet
-        lagTS = true;
-        lagSet = true;
-    elseif strcmpi(arg, 'field') && ~lagSet
-        lagTS = false;
-        lagSet = true;
-    elseif isscalar(arg) && ~dimSet
-        fieldDim = arg;
-        dimSet = true;
-    elseif isvector(arg) && length(arg)==2 && ~boundSet
-        indexBounds = arg;
-        restrict = true;
-        boundSet = true;
-    else
-        error('Unrecognized input');
-    end
-    iArg = iArg+1;
-end
 
 end
     
