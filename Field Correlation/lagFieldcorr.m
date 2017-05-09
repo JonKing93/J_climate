@@ -73,6 +73,9 @@ function[corrmaps, pmaps, N] = lagFieldcorr( ts, iTS, field, iField, varargin)
 % pmap: Displays the p value of the correlation coefficient for each point
 %   on the field. Lags and Leads are stored along the last dimension
 %
+% N: The sample size (number of points used to calculate correlation
+%   coefficients / p values), for each lead and lag.
+%
 %
 % ----- Written By -----
 %
@@ -80,8 +83,7 @@ function[corrmaps, pmaps, N] = lagFieldcorr( ts, iTS, field, iField, varargin)
 
 % Parse inputs, error checking
 [tsLags, fLags, fixN, iBounds, dim, corrArgs] = parseInputs(varargin{:});
-
-% errCheck(iTS, iField, lags, iBounds);
+[ts, iTS, iField] = errCheck(ts, iTS, iField, tsLags, fLags, iBounds); % Also converts row vectors to column
 
 % Get the indices of the points to use in each correlation
 [tsPoints, fPoints] = getLagPoints(iTS, iField, tsLags, fLags, iBounds, fixN);
@@ -105,10 +107,13 @@ end
 corrmaps = dim2TodimN( corrmaps, [1 dSize(2:end)], dOrder );
 pmaps = dim2TodimN( pmaps, [1 dSize(2:end)], dOrder );
 
+% Get the sample size for each set of correlations
+N = sum(tsPoints)';
+
 end
 
 % % ----- Helper Functions -----
-function[tsPoints, fPoints] = getLagPoints(iTS, iField, tsLags, fLags, iBounds)
+function[tsPoints, fPoints] = getLagPoints(iTS, iField, tsLags, fLags, iBounds, fixN)
 % Get the 0-lag time intersection points
 if isempty(iBounds)
     [~, xTS, xF] = intersect(iTS, iField);  % All intersecting time indices
@@ -119,8 +124,8 @@ end
 
 % Preallocate logical arrays of the time indices to be compared for each lead / lag
 nlags = numel(tsLags) + numel(fLags);
-lTS = length(ts);
-lF = size(field, 1);
+lTS = length(iTS);
+lF = length(iField);
 
 tsPoints = false(lTS, nlags);
 fPoints = false(lF, nlags);
@@ -192,6 +197,26 @@ if ~isempty(fLags)
         lagcol = lagcol + 1;
     end
 end
+
+if fixN
+    % Limit all comparisons to the same number of points
+    N = min( sum(tsPoints) );
+
+    % For each column of lag points
+    for k = 1:nlags
+        % Get the first N intersection points
+        saveTS = find( tsPoints(:,k), N );
+        saveF = find( fPoints(:,k), N );
+
+        % Remove all other intersection points
+        tsPoints(:,k) = false;
+        fPoints(:,k) = false;
+
+        tsPoints(saveTS, k) = true;
+        fPoints(saveF, k) = true;
+    end
+end
+
 end
 
 function[tsLags, fLags, fixN, iBounds, dim, corrArgs] = parseInputs(varargin)
@@ -276,98 +301,62 @@ if ~isempty(inArgs)
     end
 end    
 end
-%     
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% 
-% % Do some error checking, get some sizes
-% function[iTS, iField] = setup(tsIndices, fieldIndices, lags, indexBounds, lagTS, restrict)
-% 
-% % Check that indices are correctly formatted and overlapping
-% if ~isvector(tsIndices)
-%     error('tsIndices must be a vector');
-% elseif ~isvector(fieldIndices)
-%     error('fieldIndices must be a vector');   
-% elseif any(mod(tsIndices,1) ~= 0) || any( mod(tsIndices,1) ~= 0)
-%     error('Indices must be integers');
-% elseif any( mod(tsIndices(2:end)-tsIndices(1:end-1),1) ~= 0) || ...
-%         any( mod(fieldIndices(2:end)-fieldIndices(1:end-1),1) ~= 0)
-%     error('Indices must increment by 1');
-% end
-% 
-% % Indices are formatted correctly, get the overlap
-% [overlap, iTS, iField] = intersect(tsIndices, fieldIndices);
-% if isempty(overlap)
-%     error('tsIndices and fieldIndices have no overlapping values');
-% end
-% 
-% % Restrict the overlap if indexBounds are specified
-% if restrict    
-%     % Check that the index bounds are acceptable
-%     if  ~any( overlap == indexBounds(1) )
-%         error('Lower indexBound is not within the overlapping time indices');
-%     elseif ~any( overlap == indexBounds(2) )
-%         error('Upper indexBound is not within the overlapping time indices');
-%     end
-%     % Limit the overlap
-%     minDex = find( overlap == indexBounds(1) );
-%     maxDex = find( overlap == indexBounds(2) ); 
-%     overlap = overlap(minDex:maxDex);
-%     
-%     % Update the indices
-%     [~,iTS] = intersect( tsIndices, overlap);
-%     [~,iField] = intersect(fieldIndices, overlap);
-% end
-% 
-% % Check that lags is a vector of integers
-% if ~isvector(lags)
-%     error('lags must be a vector');
-% elseif any( mod(lags, 1) ~= 0)
-%     error('lags must be integers');
-% end
-% 
-% % Check that lags are not too large
-% maxlag = 0;
-% maxlead = 0;
-% if min(lags) < 0
-%     maxlag = min(lags);
-% end
-% if max(lags) > 0
-%     maxlead = max(lags);
-% end
-% 
-% if lagTS % For lag/leading the time series
-%    if ~any(tsIndices == (min(overlap)+maxlag) )
-%        error('Maximum lag exceeds the length of the time series');
-%    elseif ~any( tsIndices == max(overlap)+maxlead)
-%        error('Maximum lead exceeds the length of the time series.');
-%    end
-% else
-%    if ~any(fieldIndices == (min(overlap)+maxlag) )
-%        error('Maximum lag exceeds the length of the time series');
-%    elseif ~any( fieldIndices == max(overlap)+maxlead)
-%        error('Maximum lead exceeds the length of the time series.');
-%    end
-% end
-% 
-% 
-%    
-% end
+    
+function[ts, iTS, iField] = errCheck(ts, iTS, iField, tsLags, fLags, iBounds)
+
+% Check time indices
+if ~isvector(ts) || ~isvector(iTS) || ~isvector(iField)
+    error('ts, iTS, and iField must be vectors');
+elseif any(mod(iTS,1)~=0) || any(mod(iField,1)~=0)
+    error('iTS and iField must be integers');
+elseif any( mod(iTS(2:end)-iTS(1:end-1),1) ~= 0 ) || ...
+        any( mod(iField(2:end)-iField(1:end-1),1) ~= 0)
+    error('Indices must increment by 1');
+elseif isempty( intersect(iTS, iField) )
+    error('iTS and iField have no overlapping values');
+end
+
+% Check the lags
+if ~isempty(tsLags)
+    if ~isvector(tsLags)
+        error('tsLags must be a vector')
+    elseif any( mod(tsLags,1) ~= 0 )
+        error('tsLags must be integers');
+    elseif max(abs(tsLags)) >= length(iTS)
+        error('A time series lag exceeds the time series length');
+    end
+end
+if ~isempty(fLags)
+    if ~isvector(fLags)
+        error('fieldLags must be a vector')
+    elseif any( mod(fLags,1) ~= 0 )
+        error('fieldLags must be integers');
+    elseif max(abs(fLags)) >= length(iField)
+        error('A field lag exceeds the field length');
+    end
+end
+if isempty(tsLags) && isempty(fLags)
+    error('No leads or lags have been specified');
+end
+    
+% Column vectors
+if ~iscolumn(ts)
+    ts = ts';
+end
+if ~iscolumn(iTS)
+    iTS = iTS';
+end
+if ~iscolumn(iField)
+    iField = iField';
+end
+
+% Check the iBounds
+if ~isempty(iBounds)
+    overlap = intersect(iTS, iField);
+    if ~any( overlap == iBounds(1) )
+        error('Lower iBound is not within overlapping time indices');
+    elseif ~any( overlap == iBounds(2) )
+        error('Upper iBound is not within overlapping time indices');
+    end
+end  
+end
