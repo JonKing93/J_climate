@@ -37,6 +37,11 @@ function[corrmap, pmap] = fieldcorr(ts, field, varargin)
 %
 % pmap: Displays the p value of the correlation coefficient for each point
 %       on the field.
+%
+%
+% ----- Written By -----
+%
+% Jonathan King, 2017, University of Arizona, jonking93@email.arizona.edu
 
 
 % Parse the inputs, do some error checking
@@ -52,7 +57,7 @@ function[corrmap, pmap] = fieldcorr(ts, field, varargin)
 % Reshape the correlation map to the shape of the original field
 corrmap = dim2TodimN( corrmap, [1 dSize(2:end)], dOrder);
 
-% Now reshape the map of p-values
+% Reshape the map of p-values
 pmap = dim2TodimN( pmap, [1 dSize(2:end)], dOrder);
 end
 
