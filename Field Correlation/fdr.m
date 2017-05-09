@@ -1,16 +1,11 @@
-function[sigP, passTest] = fdr(p, q, varargin)
+function[sigP, passTest] = fdr(p, q, testType)
 %% Controls the rate of false discovery for a set of p-values used to test
-% multiple inter-related null hypotheses.
+% multiple null hypotheses.
 %
-% [sigP, passTest] = fdr(p, q)
+% [sigP, passTest] = fdr(p, q, testType)
 % Returns the (sorted) p values that are significant under the false
-% discovery rate criteria for tests with any variable dependency.
-%
-% [sigP, passTest] = fdr(p, q, '+dep')
-% Returns the (sorted) p values that are significant under the false
-% discovery rate criteria for tests with ONLY positive dependency (i.e. all
-% variables are positively correlated). This is a less conservative test
-% than the case of any dependency.
+% discovery rate criteria for tests with any variable dependency using the
+% desired false discovery rate test.
 %
 %
 % ----- Inputs -----
@@ -22,6 +17,16 @@ function[sigP, passTest] = fdr(p, q, varargin)
 % q: The rate of false discovery. This is the percent of null hypotheses
 %       that are falsely rejected and attributed as significant. (q = 0.05
 %       is a commonly used value.) q must be on the interval (0,1)
+%
+% testType: A flag for the desired fdr procedure
+%       'BH': The Benjamini-Hochberg procedure. Guaranteed to control the 
+%               false detection rate when all data are independent or
+%               positively correlated. Moderately conservative.
+%       'BY': The Benjamini-Yekutieli procedure. Guaranteed for any type of
+%               data dependency. A very conservative test.
+%       'BKY': Benjamini-Krieger-Yekutieli. Guaranteed only for independent
+%               datasets. Uses a two-stage process to provide a less overly
+%               conservative approach than BH and BY.
 %
 %
 % ----- Outputs -----
@@ -43,18 +48,24 @@ function[sigP, passTest] = fdr(p, q, varargin)
 %   rate in multiple testing under dependency. The Annals of Statistics. 
 %   29(4), 1165-1188. 
 %
+% Benjamini, Y., Krieger, A. M., & Yekutieli, D. (2006). Adaptive linear 
+%   step-up procedures that control the false discovery rate. Biometrika, 491-507.
+%
 % A review on multiple comparisons including FDR:
 %   Groppe, D.M., Urbach, T.P., & Kutas, M. (2011) Mass univariate analysis
 %       of event-related brain potentials/fields I: A critical tutorial review. 
 %       Psychophysiology, 48(12) pp. 1711-1725, DOI: 10.1111/j.1469-8986.2011.01273.x 
+%
+%
+% ----- Written By -----
+%
+% Jonathan King, 2017, University of Arizona, jonking93@email.arizona.edu
 
-
-% Parse the inputs and do error checking
-[posDependent] = parseInputs(varargin{:});
+% Do error checking
 errCheck(p,q);
 
 % Reshape p into a column vector
- pvec = p(:);
+pvec = p(:);
 
 % Sort the p values
 pvec = sort(pvec);
@@ -68,17 +79,33 @@ m = numel(pvec);
 % Assign an index i for each sorted p value
 i = (1:m)';
 
-% If the tests were on variables with ONLY positive dependency...
-if posDependent
-    
-    % ... use the less conservative test: p <= i*q/m      
+% Perform the appropriate test...
+if strcmpi(testType, 'BH')       % Benjamini-Hochberg
     passTest =  (pvec <= i*q/m);
     
-else % Otherwise, use the more conservative test for any dependency
+elseif strcmpi(testType, 'BY')   % Benjamini-Yekutieli
     denom = m * sum( 1./i );
-    passTest =  (  pvec <=  i*q/denom  );
-end
+    passTest =  (pvec <= i*q/denom);
     
+elseif strcmpi(testType, 'BKY')  % Benjamini-Krieger-Yekutieli
+    % Get q'
+    q1 =    q / (1+q);
+    
+    % Get an estimate of the number of false null hypotheses (p values that
+    % pass the test)
+    r1 =  sum( pvec <= i*q1/m );
+    
+    % If nothing passed, stop, no null hypotheses are rejected
+    if r1 == 0
+        passTest = false( size(pvec) );
+        
+    else % Otherwise continue to the second stage
+    
+        % Get q'' and run the test
+        q2 = (m / (m - r1)) * q1;
+        passTest =  (pvec <= i*q2/m);
+    end
+end
 
 % Get the index of the last passed test
 k = find(passTest, 1, 'last');
@@ -95,21 +122,7 @@ end
 
 end
 
-% Helper Function
-function[posDependent] = parseInputs( varargin )
-inArgs = varargin;
-
-% Set the default
-posDependent = false;
-
-if ~isempty(inArgs)
-    if length(inArgs)==1 && strcmpi(inArgs{1}, '+dep')
-        posDependent = true;
-    else
-        error('Unrecognized Input');
-    end
-end
-end
+% ----- Helper Function -----
 
 function[] = errCheck(p, q)
 if any( p(~isnan(p))>=1 | p(~isnan(p))<=0)

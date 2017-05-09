@@ -34,10 +34,9 @@ function[s] = fieldcorr_Analysis(ts, field)
 % Performs the analysis using alternative methods of correlation. See the
 % MATLAB help page on "corr" for details.
 %
-% [s] = fieldcorr_Analysis(..., 'fdr', ...........? )
-%
+% [s] = fieldcorr_Analysis(..., 'fdr', q, fdrType)
+% Restricts significant correlations using the false detection rate method.
 
 
 
-% Perform the field correlation at the desired lags
 

@@ -56,6 +56,7 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 %
 % iterTrueConf: The true confidence level used for each iteration.
 
+
 % Parse inputs, do an error check
 [nPassed, corrArgs, convergeTest] = parseInputs(varargin{:});
 errCheck(ts, field2D, MC, p);
