@@ -62,8 +62,6 @@ function[] = errCheck(dates1, dates2)
 if ~isvector(dates1) || ~isvector(dates2) || ~isdatetime(dates1) || ~isdatetime(dates2)
     error('dates1 and dates2 must be datetime vectors');
 
-elseif hasNaN(dates1) || hasNaN(dates2)
-    error('dates1 and dates2 may not contain NaN');
 
 else
     
