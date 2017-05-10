@@ -17,8 +17,8 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 % Performs the test using alternative parameters for the "corr" function. 
 % See the help section of "corr" for details.
 %
-% [nNeeded/isSig] = MC_fieldcorr(..., 'noConvergeTest')
-% Blocks testing of Monte Carlo convergence.
+% [...] = MC_fieldcorr(..., convergeFlag)
+% Specifies whether to record Monte Carlo convergence data
 %
 %
 % ----- Inputs -----
@@ -42,6 +42,9 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 % corrArgs: A cell containing alternative parameters for the "corr"
 %       function, see the "corr" help section for details.
 %
+% convergeFlag: Specifies whether or not to record Monte Carlo convergence
+%       'convergeTest': (Default) Records convergence data
+%       'noConvergeTest': Does not record convergence data
 %
 % ----- Outputs -----
 %
@@ -115,6 +118,8 @@ end
 
 if convergeTest
     varargout(2:3) = {iterNPassed, iterTrueConf};
+else
+    varargout(2,3) = {NaN, NaN};
 end
     
 end
@@ -164,6 +169,8 @@ if ~isempty(inArgs)
             isCorrArg = true;
         elseif strcmpi(arg, 'noConvergeTest')
             convergeTest = false;
+        elseif strcmpi(arg, 'convergeTest')
+            % Do nothign
         else
             error('Unrecognized Input');
         end

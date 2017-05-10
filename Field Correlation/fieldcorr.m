@@ -48,17 +48,21 @@ function[corrmap, pmap] = fieldcorr(ts, field, varargin)
 [fieldDim, corrArgs] = parseInputs( varargin{:});
 [ts] = errCheck(ts, field, fieldDim); % Also makes ts a column vector
 
-% Reshape the field into a 2D matrix along the dimension of interest
-[field, dSize, dOrder] = dimNTodim2(field, fieldDim);
+if fieldDim ~= 1
+    % Reshape the field into a 2D matrix along the dimension of interest
+    [field, dSize, dOrder] = dimNTodim2(field, fieldDim);
+end
 
 % Perform the correlation
 [corrmap, pmap] = corr(ts, field, corrArgs{:});
 
-% Reshape the correlation map to the shape of the original field
-corrmap = dim2TodimN( corrmap, [1 dSize(2:end)], dOrder);
+if fieldDim ~= 1
+    % Reshape the correlation map to the shape of the original field
+    corrmap = dim2TodimN( corrmap, [1 dSize(2:end)], dOrder);
 
-% Reshape the map of p-values
-pmap = dim2TodimN( pmap, [1 dSize(2:end)], dOrder);
+    % Reshape the map of p-values
+    pmap = dim2TodimN( pmap, [1 dSize(2:end)], dOrder);
+end
 end
 
 

@@ -109,15 +109,38 @@ end
 
 % Global (at all lags) significance test for multiple comparisons
 nTests = numel(s.pmaps(~isnan(s.pmaps)));
-nPass = numel(  s.pmaps(~isnan(s.pmaps)) < p);
+nPass = numel(  s.pmaps(~isnan(s.pmaps)) <= p);
 s.isSigGlobal = finiteTestsAreSig(nTests, p, nPass);
 
-% Local (for each individual lag) significance test for multiple comparison
+% Local (for each individual lead / lag) significance test for multiple comparison
 s.isSig = NaN(nlags,1);
-for k = 1:nlags
-    nPass = numel(s.pmaps
-    s.isSig(k) = finiteTestsAreSig(
+map1 = s.pmaps(:,:,1);
+nTests = numel( map1(~isnan(map1)) );
 
+for k = 1:nlags
+    mapk = s.pmaps(:,:,k);
+    nPass = numel( mapk(~isnan(mapk)) <= p );
+    s.isSig(k) = finiteTestsAreSig(nTests, p, nPass);
+end
+
+% Spatial significance test
+s.iterNPassed = NaN(nlags,1);
+s.iterTrueConf = NaN(nlags,1);
+if runSpatial
+    mapk = s.pmaps(:,:,k);
+    nPass = numel( mapk(~isnan(mapk)) <= p );
+    
+    for k = 1:nlags
+        if s.isSig(k)        
+            [s.isSig(k), s.iterNPassed(k), s.iterTrueConf(k)] = ...
+                MC_fieldcorr(ts, field, MC, noiseType, p, nPass, 'corrArgs', corrArgs, testConverge);
+        end
+    end
+end
+
+% False detection rate
+if testingFDR
+    
 
 
 
@@ -142,7 +165,7 @@ tsLags = [];
 fieldLags = [];
 iTS = NaN;
 iField = NaN;
-testConverge = true;
+testConverge = 'convergeTest';
 dim = 1;
 corrArgs = {'type', 'Pearson'};
 bothLags = false;
