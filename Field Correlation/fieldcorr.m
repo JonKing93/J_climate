@@ -70,7 +70,7 @@ inArgs = varargin;
 
 % Set defaults
 fieldDim = 1;
-corrArgs = {};
+corrArgs = {'type', 'Pearson'};
 
 if ~isempty(inArgs)
     iscorrarg = false;

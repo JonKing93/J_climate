@@ -124,8 +124,6 @@ function[] = errCheck(ts, field2D, MC, p)
 
 if ~isvector(ts)
     error('ts must be a vector');
-elseif hasNaN(ts)
-    error('ts cannot contain NaN');
 elseif ~ismatrix(field2D)
     error('field2D must be a 2D matrix');
 elseif MC<1 || mod(MC,1)~=0

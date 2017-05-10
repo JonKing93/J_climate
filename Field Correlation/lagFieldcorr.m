@@ -228,7 +228,7 @@ fLags = [];
 fixN = false;
 iBounds = [];
 dim = 1;
-corrArgs = {};
+corrArgs = {'type', 'Pearson'};
 
 if ~isempty(inArgs)
     % Flag switches
