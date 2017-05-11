@@ -1,4 +1,4 @@
-function[sigP, passTest] = fdr(p, q, testType)
+function[sigP, passTest] = fdr(p, q, testType, d)
 %% Controls the rate of false discovery for a set of p-values used to test
 % multiple null hypotheses.
 %

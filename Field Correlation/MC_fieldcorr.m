@@ -6,10 +6,10 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 %
 % [nNeeded, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field2D, MC, noiseType, p)
 % Computes the number of passed significance tests required for the field
-% correlation to remain above the significance level p given observed spatial
+% correlation to remain above the significance levels, p, given observed spatial
 % interdependence. Also tests the convergence on the Monte Carlo method.
 %
-% [isSig, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field2D, MC, noiseType, p, nPassed)
+% [areSig, nNeeded, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field2D, MC, noiseType, p, nPassed)
 % Returns a boolean for whether the given number of passed tests remains
 % above the significance level p. Also tests Monte Carlo convergence.
 %
@@ -18,7 +18,7 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 % See the help section of "corr" for details.
 %
 % [...] = MC_fieldcorr(..., convergeFlag)
-% Specifies whether to record Monte Carlo convergence data
+% May be used to block recording of Monte Carlo convergence.
 %
 %
 % ----- Inputs -----
@@ -51,7 +51,7 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 % nNeeded: The number of passed tests required to maintain significance at
 %       the p significance level.
 %
-% isSig: A boolean for whether the given number of passed tests maintains
+% areSig: A boolean for whether the given number of passed tests maintains
 %       significance at the p significance level.
 %
 % iterNPassed: The number of passed significance tests that must be
@@ -97,7 +97,7 @@ if convergeTest
         iterNPassed(k) = iterPass(iterThresh);
     end
     
-    % Get the number of passed tests needed
+    % Get the number of passed tests needed to maintain significance
     nNeeded = iterNPassed(end);
     
 else % ... not testing convergence
@@ -111,15 +111,13 @@ end
 
 % Return the desired output variable
 if isnan(nPassed)
-    varargout{1} = nNeeded;
+    varargout(1) = {nNeeded};
 else
-    varargout{1} = (nPassed > nNeeded); % ... the isSig arg
+    varargout(1:2) = {(nPassed > nNeeded), nNeeded}; % include the areSig output
 end
 
 if convergeTest
-    varargout(2:3) = {iterNPassed, iterTrueConf};
-else
-    varargout(2,3) = {NaN, NaN};
+    varargout(end+1:end+2) = {iterNPassed, iterTrueConf};
 end
     
 end

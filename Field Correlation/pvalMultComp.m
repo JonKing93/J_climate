@@ -51,39 +51,10 @@ function[areSig, nNeeded, nPassed] = pvalMultComp( p, pvals, d)
 %
 % Jonathan King, 2017, University of Arizona, jonkin93@email.arizona.edu
 
-% Parse inputs
-if nargin == 2
-    singleSet = true;
-    d = NaN;
-else
-    singleSet = false;
-end
 
-% Error check, make everything a column vector
-[p] = errCheck(p, pvals, d);
 
-% Make the indexing dimension first for multiple sets of p-values
-if ~singleSet
-    dOrder = 1:ndims(pvals);
-    dOrder(1) = d;
-    dOrder(d) = 1;
-    pvals = permute(pvals, dOrder);
-end
 
-% Get the number of hypothesis tests (N) for each set of p-values
-if singleSet
-    N = repmat( numel(pvals(~isnan(pvals))), size(p) );
-    nSubsets = 1;
-else
-    % Get N for individual subsets
-    nSubsets = size(pvals,1);
-    N = NaN(length(p), nSubsets);
-    
-    for k = 1:nSubsets
-        setK = pvals(k,:);
-        N(:,k) = numel( setK(~isnan(setK)) );
-    end
-end
+
 
 % Get the number of tests needed for each significance level and N
 nNeeded = NaN(size(N));
@@ -91,41 +62,9 @@ for k = 1:nSubsets
     nNeeded(:,k) = multCompSig(p, N(:,k));
 end
 
-% Check how many tests are passed
-nPassed = NaN( size(N) );
-if singleSet
-    for k = 1:length(p)
-        pass =  ( pvals(~isnan(pvals)) <= p(k) );
-        nPassed(k) = sum(pass(:));
-    end
-else
-    for j = 1:nSubsets
-        mapJ = pvals(j,:);
-        for k = 1:length(p)
-            passJ =   ( mapJ(~isnan(mapJ)) <= p(k) );
-            nPassed(k,j) = sum(passJ(:));
-        end
-    end
-end
+
     
-% Check if the number of passed tests is sufficient to maintain
-% significance
-areSig =  (nPassed >= nNeeded);     
+
 
 end               
 
-function[p] = errCheck(p, pvals, d)
-if any(p < 0 | p > 1)
-    error('Significance levels (p) must be between 0 and 1');
-elseif any(pvals(~isnan(pvals))<0 | pvals(~isnan(pvals))>1)
-    error('pvals must be on the interval (0,1)');
-end
-
-if ~isnan(d) && (d>ndims(pvals) || d<0 || mod(d,1)~=0)
-    error('d is not a valid dimension of pvals');
-end
-
-if isrow(p)
-    p = p';
-end
-end
