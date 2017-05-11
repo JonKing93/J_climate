@@ -95,13 +95,15 @@ end
 nPassed = NaN( size(N) );
 if singleSet
     for k = 1:length(p)
-        nPassed(k) = numel( pvals(~isnan(pvals)) <= p(k) );
+        pass =  ( pvals(~isnan(pvals)) <= p(k) );
+        nPassed(k) = sum(pass(:));
     end
 else
     for j = 1:nSubsets
         mapJ = pvals(j,:);
         for k = 1:length(p)
-            nPassed(k,j) = numel( mapJ(~isnan(mapJ)) <= p(k) );
+            passJ =   ( mapJ(~isnan(mapJ)) <= p(k) );
+            nPassed(k,j) = sum(passJ(:));
         end
     end
 end
