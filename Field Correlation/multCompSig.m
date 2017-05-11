@@ -12,7 +12,7 @@ function[areSig, nNeeded] = multCompSig( p, varargin)
 % remain above the desired significance levels. Separate sets of p values
 % run along dimension d of pvals.
 %
-% [NaN, nNeeded] = multCompSig( p, N )
+% [nNeeded] = multCompSig( p, N )
 % Returns the number of passed tests needed to remain significant given the
 % number of hypothesis tests.
 % 
@@ -125,7 +125,8 @@ end
         
 % Check if the number of passed tests exceeds the number of tests needed
 if noPvals && nargin==2
-    areSig = NaN;
+    areSig = nNeeded;
+    nNeeded = NaN;
 else
     areSig = (nPass >= nNeeded);
 end
@@ -200,11 +201,14 @@ if p < 0 || p > 1
 end
 
 if noPvals
-    if ~isvector(nPass) || length(nPass)~=N
-        error('nPass must be a vector with the same length as p and N');
-    elseif any(nPass<0 || mod(nPass,1)~=0)
-        error('nPass must be a non-negative integer');
-    elseif any(N<1 || mod(N,1)~=0)
+    if ~isnan(nPass) 
+        if(~isvector(nPass) || length(nPass)~=N)
+            error('nPass must be a vector with the same length as p and N');
+        elseif any(nPass<0 || mod(nPass,1)~=0)
+            error('nPass must be a non-negative integer');
+        end
+    end
+    if any(N<1 || mod(N,1)~=0)
         error('N must be a positive integer');
     end
     
