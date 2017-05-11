@@ -185,8 +185,15 @@ if fdrTest
 end
     
 % Reshape to original dimensions
-s.corrmaps = dim2TodimN(s.corrmaps, [1 dSize(2:end) nlags], [dOrder, max(dOrder)+1] );
-s.pmaps = dim2TodimN(s.corrmaps, [1 dSize(2:end) nlags], [dOrder, max(dOrder)+1] );
+s.corrmaps = dim2TodimN(s.corrmaps, [1 dSize(2:end) size(s.pmaps,3)], [dOrder, max(dOrder)+1] );
+s.pmaps = dim2TodimN(s.pmaps, [1 dSize(2:end) size(s.pmaps,3)], [dOrder, max(dOrder)+1] );
+
+% Get metadata
+s.metadata = [{'Spatial Test', 'MC', 'Noise Type', 'MC Convergence Test', ...
+    'FDR Test', 'FDR Type', 'Lag Args', 'corr Args'};...
+    {spatialTest, MC, noiseType, convergeFlag, fdrTest, fdrType, lagArgs, corrArgs}];
+s.p = p;
+s.q = q;
 
 end
 
@@ -211,8 +218,9 @@ noiseType = NaN;
 p = NaN;
 convergeFlag = 'convergeTest';
 
-fdrTest = NaN;
+fdrTest = false;
 q = NaN;
+fdrType = NaN;
 
 noLags = true;
 otherLagArg = {};
@@ -304,6 +312,7 @@ if ~isempty(inArgs)
             end
             
         elseif strcmpi(arg, 'fdr')
+            fdrTest = true;
             if length(inArgs)>=k+2
                 isq = true;
             else

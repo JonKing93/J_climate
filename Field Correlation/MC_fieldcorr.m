@@ -153,6 +153,8 @@ end
 
 if convergeTest
     varargout(end+1:end+2) = {iterNPassed, iterTrueConf};
+else
+    varargout(end+1:end+2) = {NaN, NaN};
 end
     
 end
