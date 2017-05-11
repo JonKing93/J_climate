@@ -100,12 +100,12 @@ pmaps = NaN( [1 size(field,2), nlags] );
 for k = 1:nlags
     % Perform a field correlation
     [corrmaps(:,:,k), pmaps(:,:,k)] = ...
-        fieldcorr( ts(tsPoints(:,k)), field(fPoints(:,k)), 'corrArgs', corrArgs);
+        fieldcorr( ts(tsPoints(:,k)), field(fPoints(:,k),:), 'corrArgs', corrArgs);
 end
 
 % Reshape the maps to the original dimensionality
-corrmaps = dim2TodimN( corrmaps, [1 dSize(2:end)], dOrder );
-pmaps = dim2TodimN( pmaps, [1 dSize(2:end)], dOrder );
+corrmaps = dim2TodimN( corrmaps, [1 dSize(2:end) nlags], [dOrder max(dOrder)+1] );
+pmaps = dim2TodimN( pmaps, [1 dSize(2:end) nlags], [dOrder max(dOrder)+1] );
 
 % Get the sample size for each set of correlations
 N = sum(tsPoints)';

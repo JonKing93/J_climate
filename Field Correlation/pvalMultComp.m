@@ -1,12 +1,12 @@
-function[areSig, nNeeded] = pvalMultComp( p, pvals, d)
+function[areSig, nNeeded, nPassed] = pvalMultComp( p, pvals, d)
 %% Checks a collection of p-values from mutliple hypothesis testing to check
 % if they remain above a given significance level given test multiplicity
 % 
-% [areSig, nNeeded] = pvalMultComp( p, pvals )
+% [areSig, nNeeded, nPassed] = pvalMultComp( p, pvals )
 % Checks if a set of p values from multiple hypothesis tests remains above
 % the desired significance levels.
 % 
-% [areSig, nNeeded] = pvalMultComp( p, pvals, d )
+% [areSig, nNeeded, nPassed] = pvalMultComp( p, pvals, d )
 % Checks if a multiple sets of p values from multiple hypothesis tests
 % remain above the desired significance levels. Separate sets of p values
 % are along dimension d of pvals.
@@ -36,6 +36,9 @@ function[areSig, nNeeded] = pvalMultComp( p, pvals, d)
 %
 % nNeeded: The minimum number of passed tests required to remain above the
 %       significance level.
+%
+% nPassed: The number of hypothesis tests initially passed by each set of
+%       p-values.
 %
 %
 % ----- References -----
@@ -89,23 +92,23 @@ for k = 1:nSubsets
 end
 
 % Check how many tests are passed
-nPass = NaN( size(N) );
+nPassed = NaN( size(N) );
 if singleSet
     for k = 1:length(p)
-        nPass(k) = numel( pvals(~isnan(pvals)) <= p(k) );
+        nPassed(k) = numel( pvals(~isnan(pvals)) <= p(k) );
     end
 else
     for j = 1:nSubsets
         mapJ = pvals(j,:);
         for k = 1:length(p)
-            nPass(k,j) = numel( mapJ(~isnan(mapJ)) <= p(k) );
+            nPassed(k,j) = numel( mapJ(~isnan(mapJ)) <= p(k) );
         end
     end
 end
     
 % Check if the number of passed tests is sufficient to maintain
 % significance
-areSig =  (nPass >= nNeeded);     
+areSig =  (nPassed >= nNeeded);     
 
 end               
 
