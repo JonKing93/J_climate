@@ -5,7 +5,7 @@ function[varargout] = multCompSig( p, N, nPass)
 %
 % [nNeeded] = multCompSig( p, N )
 % Returns the number of passed tests needed to remain significant given the
-% number of hypothesis tests.
+% number of hypothesis tests.[nN
 %
 % [areSig, nNeeded] = multCompSig( p, N, nPass ) 
 % Returns whether a specific number of passed significance tests remains
@@ -63,10 +63,13 @@ if havePass
 else
     nNeeded = NaN(length(p),size(N,2));
 end
+if nScalar
+    N = repmat(N, [length(p),1]);
+end
 
 % For each significance level and test size
 for i = 1:length(p)
-    for j = 1:numel(N)
+    for j = 1:numel(N(i,:))
         
         % Get each binomial coefficient and add to cumulative probability
         cumProb = 0; 
@@ -89,7 +92,7 @@ for i = 1:length(p)
         if nScalar
             nNeeded(i,:) = k+1;
         else
-            nNeeded(j) = k+1;
+            nNeeded(i,j) = k+1;
         end
     end
 end
@@ -115,13 +118,17 @@ if isscalar(N)
     nScalar = true;
 else
     nScalar = false;
-    if size(N,1) ~= length(p)
+    if ~ismatrix(N)
+        error('N must be a matrix');
+    elseif size(N,1) ~= length(p)
         error('p and N must have the same length');
     end
 end
     
 if ~isnan(nPass)
-    if size(nPass,1)~=length(p)
+    if ~ismatrix(nPass)
+        error('nPass must be a matrix');
+    elseif size(nPass,1)~=length(p)
         error('nPass must have a row for each significance level (p)');
     elseif ~nScalar && ~isequal( size(N), size(nPass))
         error('N and nPass must have the same size');
