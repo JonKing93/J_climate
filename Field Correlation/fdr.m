@@ -1,8 +1,8 @@
-function[sigP, passTest] = fdr(p, q, testType, d)
+function[sigP, passTest] = fdr(pvals, q, testType)
 %% Controls the rate of false discovery for a set of p-values used to test
 % multiple null hypotheses.
 %
-% [sigP, passTest] = fdr(p, q, testType)
+% [sigP, passTest] = fdr(pvals, q, testType)
 % Returns the (sorted) p values that are significant under the false
 % discovery rate criteria for tests with any variable dependency using the
 % desired false discovery rate test.
@@ -10,7 +10,7 @@ function[sigP, passTest] = fdr(p, q, testType, d)
 %
 % ----- Inputs -----
 % 
-% p: A set of p values from multiple null hypothesis tests. p may be
+% pvals: A set of p values from multiple null hypothesis tests. p may be
 %       N-dimensional. NaN values are not given consideration in false 
 %       discovery rate tests.
 %
@@ -62,10 +62,10 @@ function[sigP, passTest] = fdr(p, q, testType, d)
 % Jonathan King, 2017, University of Arizona, jonking93@email.arizona.edu
 
 % Do error checking
-errCheck(p,q);
+errCheck(pvals,q);
 
 % Reshape p into a column vector
-pvec = p(:);
+pvec = pvals(:);
 
 % Sort the p values
 pvec = sort(pvec);
@@ -115,9 +115,9 @@ sigP = pvec(1:k);
 
 % Get the boolean mask for the original p array
 if isempty(sigP)
-    passTest = false( size(p) );
+    passTest = false( size(pvals) );
 else
-    passTest =  (  p <= sigP(end)  );
+    passTest =  (  pvals <= sigP(end)  );
 end
 
 end

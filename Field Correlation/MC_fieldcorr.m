@@ -1,33 +1,36 @@
-function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
+function[varargout] = MC_fieldcorr(ts, field, MC, noiseType, p, varargin)
 %% Performs a Monte Carlo test on a field correlation to determine if 
 % correlations remain significant above a given level after accounting for
 % spatial interdependence of field sites.
 %
-%
-% [nNeeded, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field2D, MC, noiseType, p)
+% [nNeeded, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field, MC, noiseType, p)
 % Computes the number of passed significance tests required for the field
 % correlation to remain above the significance levels, p, given observed spatial
 % interdependence. Also tests the convergence on the Monte Carlo method.
 %
-% [areSig, nNeeded, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field2D, MC, noiseType, p, nPassed)
-% Returns a boolean for whether the given number of passed tests remains
-% above the significance level p. Also tests Monte Carlo convergence.
+% [areSig, nNeeded, iterNPassed, iterTrueConf] = MC_fieldcorr(ts, field, MC, noiseType, p, nPass)
+% Returns a logical matrix for whether a given number of passed tests remains
+% above each significance level p. Also tests Monte Carlo convergence.
+%
+% [...] = MC_fieldcorr(..., convergeFlag)
+% May be used to block recording of Monte Carlo convergence.
+%
+% [...] = MC_fieldcorr(..., 'fieldDim', d)
+% performs calculations along a specified dimension of the field. By
+% default, correlations will be calculated along the first dimension.
 %
 % [...] = MC_fieldcorr(..., 'corrArgs', {corrArgs})
 % Performs the test using alternative parameters for the "corr" function. 
 % See the help section of "corr" for details.
 %
-% [...] = MC_fieldcorr(..., convergeFlag)
-% May be used to block recording of Monte Carlo convergence.
-%
 %
 % ----- Inputs -----
 %
-% ts: A time series vector. Cannot contain NaN.
+% ts: a time series. This is a single vector.
 %
-% field2D: A field. The time series at individual points in the field should
-%       have the same length as ts. Field must be 2 dimensional, and ts
-%       must run parallel to the first dimension.
+% field: A field. The time series at individual points in the field should
+%       have the same length as ts. Field may be n-dimensional. By default,
+%       fieldcorr assumes that the time series runs parallel to the first dimension.
 %
 % MC: The number of Monte Carlo iterations to perform
 %
@@ -35,9 +38,13 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 %       'white': white Gaussian noise
 %       'red': lag-1 autocorrelated noise with added Gaussian white noise
 %
-% p: The significance level that the significance tests are performed against
+% p: A vector of significance levels to test
 %
-% nPassed: The number of significance tests that passed the p significance level
+% nPass: A vector of the number of significance tests that initially pass a
+%       significance level p. nPass be the same length as p.
+%
+% d: A scalar specifying the dimension of the field on which to perform the
+%       correlation test.
 %
 % corrArgs: A cell containing alternative parameters for the "corr"
 %       function, see the "corr" help section for details.
@@ -45,6 +52,7 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 % convergeFlag: Specifies whether or not to record Monte Carlo convergence
 %       'convergeTest': (Default) Records convergence data
 %       'noConvergeTest': Does not record convergence data
+%
 %
 % ----- Outputs -----
 %
@@ -58,62 +66,89 @@ function[varargout] = MC_fieldcorr(ts, field2D, MC, noiseType, p, varargin)
 %       exceeded to maintain significance for each Monte Carlo iteration.
 %
 % iterTrueConf: The true confidence level used for each iteration.
-
+%
+%
+% ----- References -----
+%
+% Livezey, R. E., & Chen, W. Y. (1983). Statistical field significance and 
+%   its determination by Monte Carlo techniques. Monthly Weather Review, 111(1), 46-59.
+%
+%
+% ----- Written By -----
+%
+% Jonathan King, 2017, University of Arizona, jonkin93@email.arizona.edu
 
 % Parse inputs, do an error check
-[nPassed, corrArgs, convergeTest] = parseInputs(varargin{:});
-errCheck(ts, field2D, MC, p);
+[nPass, corrArgs, convergeTest, dim] = parseInputs(varargin{:});
+errCheck(ts, field, MC, p, nPass);
+
+% Convert field to 2D along the dimension of interest
+[field, ~, ~] = dimNTodim2(field, dim);
 
 % Create a set of random time series with the desired noise properties
 randTS = randNoiseSeries(noiseType, ts, MC);
 
 % Get the significance of the correlation of each random series with each
 % point on the field. The actual correlation coefficient is not needed here
-[~, mcPval] = corr(randTS, field2D, corrArgs{:});
+[~, mcPval] = corr(randTS, field, corrArgs{:});
 
 % Get the number of correlations that pass the significance level for each
 % series.
-nPass = nansum(mcPval < p, 2);
+mcNPass = NaN(MC, length(p));
+for k = 1:length(p)
+    mcNPass(:,k) = nansum(mcPval < p(k), 2);
+end
 
 % If testing Monte Carlo convergence...
 if convergeTest
     
     % Preallocate the convergence data
-    iterNPassed = NaN(MC,1);
-    iterTrueConf = NaN(MC,1);
+    iterNPassed = NaN(MC,length(p));
+    iterTrueConf = NaN(MC,length(p));
     
     % For each iteration...
     for k = 1:MC
         
         % ... sort the number of passed tests for the first k series
-        iterPass = sort( nPass(1:k) );
+        iterPass = sort( mcNPass(1:k,:) );
         
         % Get the threshold index of the first significant element for the
         % current iteration.
         iterThresh = ceil( (1-p)*k );
-        iterTrueConf(k) = iterThresh / k;
+        iterTrueConf(k,:) = iterThresh ./ k;
         
         % Get the number of required passed tests for the current iteration
-        iterNPassed(k) = iterPass(iterThresh);
+        for j = 1:length(p)
+            iterNPassed(k,j) = iterPass(iterThresh(j),j);
+        end
     end
     
     % Get the number of passed tests needed to maintain significance
-    nNeeded = iterNPassed(end);
+    nNeeded = iterNPassed(end,:);
     
 else % ... not testing convergence
     % Sort the number of passed tests and get the threshold index
-    nPass = sort(nPass);
+    mcNPass = sort(mcNPass);
     thresh = ceil( (1-p)*MC );
     
-    % Get the number of passed tests at the significance level
-    nNeeded = nPass(thresh);
+    % Get the number of passed tests at each significance level
+    nNeeded = NaN(length(p),1);
+    for k = 1:length(p)
+        nNeeded(k) = mcNPass(thresh(k),k);
+    end
 end
 
 % Return the desired output variable
-if isnan(nPassed)
+if isnan(nPass)
     varargout(1) = {nNeeded};
 else
-    varargout(1:2) = {(nPassed > nNeeded), nNeeded}; % include the areSig output
+    if ~iscolumn(nPass)
+        nPass = nPass';
+    end
+    if ~iscolumn(nNeeded)
+        nNeeded = nNeeded';
+    end    
+    varargout(1:2) = {(nPass > nNeeded), nNeeded}; % include the areSig output
 end
 
 if convergeTest
@@ -123,52 +158,62 @@ end
 end
 
 % ----- Helper Methods -----
-function[] = errCheck(ts, field2D, MC, p)
+function[] = errCheck(ts, field2D, MC, p, nPass)
 
 if ~isvector(ts)
     error('ts must be a vector');
-elseif ~ismatrix(field2D)
-    error('field2D must be a 2D matrix');
 elseif MC<1 || mod(MC,1)~=0
     error('MC must be a positive integer');
-elseif p<=0 || p>=1
+elseif any(p<=0 | p>=1)
     error('p must be on the interval (0,1)');
 elseif length(ts) ~= size(field2D,1)
     error('The time series must run parallel to the first dimension of field2D');
 end
 
+if ~isnan(nPass)
+    if ~isvector(nPass)
+        error('nPass must be a vector')
+    elseif ~isequal( length(nPass), length(p) )
+        error('nPass must be the same length as p');
+    end
 end
 
-function[nPassed, corrArgs, convergeTest] = parseInputs(varargin)
+end
+
+function[nPassed, corrArgs, convergeTest, dim] = parseInputs(varargin)
 inArgs = varargin;
 
 % Set defaults
 nPassed = NaN;
 corrArgs = {};
 convergeTest = true;
+dim = 1;
 
 if ~isempty(inArgs)
     
     isCorrArg = false;
+    isDim = false;
     
     for k = 1:length(inArgs)
         arg = inArgs{k};
         
         % The nPassed arg
-        if k==1 && isscalar(k)
-            if mod(arg,1)==0 && arg>=0
-                nPassed = arg;
-            else
-                error('nPassed must be a non-negative integer');
-            end
+        if k==1 && isvector(arg)
+            nPassed = arg;
+        elseif isDim
+            dim = arg;
+            isDim = false;
         elseif isCorrArg
             corrArgs = arg;
+            isCorrArg = false;
+        elseif strcmpi(arg, 'fieldDim')
+            isDim = true;
         elseif strcmpi(arg, 'corrArgs')
             isCorrArg = true;
         elseif strcmpi(arg, 'noConvergeTest')
             convergeTest = false;
         elseif strcmpi(arg, 'convergeTest')
-            % Do nothign
+            % Do nothing
         else
             error('Unrecognized Input');
         end

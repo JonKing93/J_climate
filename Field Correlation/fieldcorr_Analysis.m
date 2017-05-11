@@ -26,6 +26,10 @@ function[s] = fieldcorr_Analysis(ts, field, varargin)
 % [s] = fieldcorr_Analysis(..., 'lagTS', tsLags, 'lagField', fieldLags, iTS, iField)
 % Performs all tests on leads and lags of both the time series and field.
 %
+% [s] = fieldcorr_Analysis(..., 'lagArgs', {lagArgs})
+% Runs the lagged field correlation using the 'fixedN' or 'restrictBounds'
+% arguments. See the help secton of "lagFieldcorr" for details.
+%
 % [s] = fieldcorr_Analysis(..., 'noConvergeTest')
 % Blocks the recording of Monte Carlo convergence data. May improve runtime
 % for very large analyses.
@@ -91,98 +95,148 @@ function[s] = fieldcorr_Analysis(ts, field, varargin)
 
 
 % Parse Inputs
-[runSpatial, MC, noiseType, p, q, fdrType, noLags, lagArgs, nlags, testConverge, dim, corrArgs] = ...
-    parseInputs(varargin{:});
+[dim, corrArgs, iTS, iField, lagArgs, spatialTest, MC, noiseType, p, ...
+    convergeFlag, fdrTest, q, fdrType, noLags] = parseInputs(varargin{:});
 
-% Declare the initial structure
-s = struct();
-
-% Make the field 2D along the dimension of interest
+% Reshape field to 2D
 [field, dSize, dOrder] = dimNTodim2(field, dim);
 
-% Run the field correlation at all lags
-if isempty(lagArgs)
-    [s.corrmaps, s.pmaps] = fieldcorr(ts, field, 'corrArgs', corrArgs{:});
-else 
-    [s.corrmaps, s.pmaps, s.N] = lagFieldcorr(ts, iTS, field, iField, lagArgs{:}, 'corrArgs', corrArgs);
-end
-
-% Global (at all lags) significance test for multiple comparisons
-nTests = numel(s.pmaps(~isnan(s.pmaps)));
-nPass = numel(  s.pmaps(~isnan(s.pmaps)) <= p);
-s.isSigGlobal = finiteTestsAreSig(nTests, p, nPass);
-
-% Local (for each individual lead / lag) significance test for multiple comparison
-s.isSig = NaN(nlags,1);
-map1 = s.pmaps(:,:,1);
-nTests = numel( map1(~isnan(map1)) );
-
-for k = 1:nlags
-    mapk = s.pmaps(:,:,k);
-    nPass = numel( mapk(~isnan(mapk)) <= p );
-    s.isSig(k) = finiteTestsAreSig(nTests, p, nPass);
-end
-
-% Spatial significance test
-s.iterNPassed = NaN(nlags,1);
-s.iterTrueConf = NaN(nlags,1);
-if runSpatial
-    mapk = s.pmaps(:,:,k);
-    nPass = numel( mapk(~isnan(mapk)) <= p );
+% Run the analysis with no lags
+if noLags
+    % Run the field correlation
+    [s.corrmaps, s.pmaps] = fieldcorr(ts, field, 'corrArgs', corrArgs);
     
-    for k = 1:nlags
-        if s.isSig(k)        
-            [s.isSig(k), s.iterNPassed(k), s.iterTrueConf(k)] = ...
-                MC_fieldcorr(ts, field, MC, noiseType, p, nPass, 'corrArgs', corrArgs, testConverge);
+    % Get the initial number of passed significance tests
+    [s.nPass, s.N] = getNPassN(p, s.pmaps);
+    
+    % Account for mutliple comparisons
+    [s.areSigM, s.nNeededM] = multCompSig(p, s.N, s.nPass);
+    
+    % Account for spatial interdependence
+    if spatialTest
+        [s.areSigS, s.nNeededS, s.iterNPassed, s.iterTrueConf] = ...
+            MC_fieldcorr(ts, field, MC, noiseType, p, s.nPass, convergeFlag, 'corrArgs', corrArgs);
+    end
+    
+
+% Run the analysis with lags
+else
+    % Run the lagged field correlation
+    [s.corrmaps, s.pmaps, s.corrSize, s.tsPoints, s.fPoints] = ...
+        lagFieldcorr(ts, iTS, field, iField, lagArgs);
+    
+    % Get the global number of passed tests
+    [s.nPassG, s.NG] = getNPassN(p, s.pmaps);
+    % Get the number of passed significance tests for each lag
+    [s.nPass, s.N] = getNPassN(p, s.pmaps, 3);
+      
+    % Test significance while accounting for multiple comparisons
+    if any( s.N ~= s.N(1) )
+        [s.areSigM, s.nNeededM] = multCompSig(p, s.N, s.nPass);
+    else
+        % All N are the same, can be used to improve runtime
+        [s.areSigM, s.nNeededM] = multCompSig(p, s.N(1), s.nPass);
+    end
+    
+    % Account for spatial interdependence
+    if spatialTest
+        % Preallocate at all lags
+        nlags = size(s.tsPoints,2);
+        s.areSigS = NaN(length(p), nlags);
+        s.nNeededS = NaN(length(p), nlags);
+        s.iterNPass = NaN(MC, length(p), nlags);
+        s.iterTrueConf = NaN(MC, length(p), nlags);
+        
+        % Run MC_fieldcorr at each lag
+        for k = 1:nlags
+            [s.areSigS(:,k), s.nNeededS(:,k), s.iterNPassed(:,:,k), s.iterTrueConf(:,:,k)] = ...
+                MC_fieldcorr(ts(s.tsPoints(:,k)), field(s.fPoints(:,k),:), MC, noiseType, p, s.nPass(:,k), convergeFlag, 'corrArgs', corrArgs);
         end
     end
 end
 
-% False detection rate
-if testingFDR
+% Get the sets of p-values that remain significant under all tests
+if spatialTest
+    s.areSig =  ( s.areSigM & s.areSigS );
+else
+    s.areSig = s.areSigM;
+end
+
+% Get the indices of significant p-values in significant sets
+s.sigP = cell( size(s.areSig) );
+for j = 1:size(s.pmaps, 3)
+    for k = 1:length(p)
+        if s.areSig(k,j)
+            s.sigP{k,j} =  ( s.pmaps(:,:,j) <= p(k) );
+            s.sigP{k,j} = dim2TodimN( s.sigP{k,j}, [1 dSize(2:end)], dOrder);
+        end
+    end
+end
+
+% Apply a false detection rate procedure
+if fdrTest
+    s.fdrSigP = cell(length(q), size(s.pmaps,3),1);
+    for j = 1:size(s.pmaps,3)
+        for k = 1:length(q)
+            [~, s.fdrSigP{k,j}] = fdr( s.pmaps(:,:,j), q(k), fdrType);
+            s.fdrSigP{k,j} = dim2TodimN( s.fdrSigP{k,j}, [1 dSize(2:end)], dOrder);
+        end
+    end
+end
     
-
-
-
+% Reshape to original dimensions
+s.corrmaps = dim2TodimN(s.corrmaps, [1 dSize(2:end) nlags], [dOrder, max(dOrder)+1] );
+s.pmaps = dim2TodimN(s.corrmaps, [1 dSize(2:end) nlags], [dOrder, max(dOrder)+1] );
 
 end
 
 % ----- Helper Functions -----
 
-function[runSpatial, MC, noiseType, p, q, fdrType, tsLags, fieldLags, iTS, ...
-    iField, testConverge, dim, corrArgs] = parseInputs(varargin)
-
+function[dim, corrArgs, iTS, iField, lagArgs, spatialTest, MC, noiseType, p, ...
+    convergeFlag, fdrTest, q, fdrType, noLags] = parseInputs(varargin)
 inArgs = varargin;
 
 % Set defaults
-runSpatial = NaN;
+dim = 1;
+corrArgs = {'type', 'Pearson'};
+
+iTS = NaN;
+iField = NaN;
+tsLags = [];
+fieldLags = [];
+
+spatialTest = true;
 MC = NaN;
 noiseType = NaN;
 p = NaN;
+convergeFlag = 'convergeTest';
+
+fdrTest = NaN;
 q = NaN;
-fdrType = NaN;
-tsLags = [];
-fieldLags = [];
-iTS = NaN;
-iField = NaN;
-testConverge = 'convergeTest';
-dim = 1;
-corrArgs = {'type', 'Pearson'};
-bothLags = false;
+
+noLags = true;
+otherLagArg = {};
 
 if ~isempty(inArgs)
    
     % Set flag switches
-    isnoisetype = false;
-    isp = false;
-    isq = false;
-    isfdrtype = false;
-    istslags = false;
-    isfieldlags = false;
-    isits = false;
-    isifield = false;
     isdim = false;
     iscorrargs = false;
+    
+    isits = false;
+    isifield = false;
+
+    isnoisetype = false;
+    isp = false;
+
+    isq = false;
+    isfdrtype = false;
+
+    istslags = false;
+    isfieldlags = false;
+    bothLags = false;
+    
+    islagarg = false;
     
     for k = 1:length(inArgs)
         arg = inArgs{k};
@@ -219,6 +273,9 @@ if ~isempty(inArgs)
         elseif isifield
             iField = arg;
             isifield = false;
+        elseif islagarg
+            otherLagArg = arg;
+            islagarg = false;
         elseif isdim
             dim = arg;
             isdim = false;
@@ -229,14 +286,22 @@ if ~isempty(inArgs)
         % Switch triggers
         elseif k==1 && ~strcmpi(arg, 'noSpatial')
             if length(inArgs)>= k+2
+                MC = arg;
                 isnoisetype = true;
-                runSpatial = true;
+                spatialTest = true;
             else 
                 error('noiseType and p are not specified');
             end
             
         elseif k==1 && strcmpi(arg, 'noSpatial')
-            runSpatial = false;
+            spatialTest = false;
+            
+        elseif strcmpi(arg, 'lagArgs')
+            if length(inArgs)>=k+1
+                islagarg = true;
+            else
+                error('lagArgs not specified');
+            end
             
         elseif strcmpi(arg, 'fdr')
             if length(inArgs)>=k+2
@@ -265,7 +330,7 @@ if ~isempty(inArgs)
             end
     
         elseif strcmpi(arg, 'noConvergeTest')
-            testConverge = false;
+            convergeFlag = arg;
             
         elseif strcmpi(arg, 'fieldDim')
             isdim = true;
@@ -279,6 +344,21 @@ if ~isempty(inArgs)
     end
 else
     error('Insufficient Inputs');
+end
+
+% Get the full set of lag arguments
+lagArgs = {};
+if isempty( [tsLags, fieldLags])
+    noLags = true;
+else
+    
+    if ~isempty(tsLags)
+        lagArgs(length(lagArgs):length(lagArgs)+1) = {'lagTS', tsLags};
+    end
+    if ~isempty(fieldLags)
+        lagArgs(length(lagArgs):length(lagArgs)+1) = {'lagF', fieldLags};
+    end
+    lagArgs = [lagArgs, otherLagArg, corrArgs];   
 end
 
 end

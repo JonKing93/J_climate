@@ -1,12 +1,12 @@
-function[corrmaps, pmaps, N] = lagFieldcorr( ts, iTS, field, iField, varargin)
+function[corrmaps, pmaps, N, tsPoints, fPoints] = lagFieldcorr( ts, iTS, field, iField, varargin)
 %% Lags or leads a time series relative to a field and computes correlation
 % coefficients and corresponding p-values.
 % 
-% [corrmaps, pmaps] = lagFieldcorr(ts, iTS, field, iField, 'lagTS', tsLags)
+% [corrmaps, pmaps, N, tsPoints, fPoints] = lagFieldcorr(ts, iTS, field, iField, 'lagTS', tsLags)
 % Computes timeseries-field correlation coefficients and p-values at specifed
 % lags and leads. Leads / lags the time series relative to the field.
 %
-% [corrmaps, pmaps] = lagFieldcorr(ts, iTS, field, iField, 'lagF', fLags)
+% [...] = lagFieldcorr(ts, iTS, field, iField, 'lagF', fLags)
 % Computes timeseries-field correlation coefficients and p-values at specifed
 % lags and leads. Leads / lags the field relative to the time series.
 %
@@ -73,8 +73,13 @@ function[corrmaps, pmaps, N] = lagFieldcorr( ts, iTS, field, iField, varargin)
 % pmap: Displays the p value of the correlation coefficient for each point
 %   on the field. Lags and Leads are stored along the last dimension
 %
-% N: The sample size (number of points used to calculate correlation
-%   coefficients / p values), for each lead and lag.
+% N: The number of points used in each correlation calculation
+%
+% tsPoints: Indices to the time series points used in each correlation.
+%   Each column represents a specific lead or lag. Time series leads/lags are
+%   listed before field lags/leads.
+%
+% fPoints: Indices to the field points used in each correlation calculation.
 %
 %
 % ----- Written By -----
