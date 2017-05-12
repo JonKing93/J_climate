@@ -1,17 +1,17 @@
-function[s] = fieldcorr_Analysis(ts, field, varargin)
+function[s] = fieldcorr_Analysis(ts, field, p, varargin)
 %% Computes the correlation of a time series with a field and tests the 
 % significance of the correlations. Includes options to consider the
 % effects of multiple comparisons, spatial inter-correlation, lag-1
 % autocorrelation, and false detection rate.
 %
 %
-% [s] = fieldcorr_Analysis(ts, field, MC, noiseType, p)
+% [s] = fieldcorr_Analysis(ts, field, p, MC, noiseType)
 % Calculates the correlation coefficients and associated p-values between
 % a time series and n-dimensional field. Considers the effect of multiple
 % hypothesis testing and uses a Monte Carlo test to consider spatial
 % interdependence to determine significant correlations.
 %
-% [s] = fieldcorr_Analysis(ts, field, 'noSpatial')
+% [s] = fieldcorr_Analysis(ts, field, p, 'noSpatial')
 % Blocks the spatial interdependence test.
 %
 % [s] = fieldcorr_Analysis(..., 'fdr', q, fdrType)
@@ -51,6 +51,16 @@ function[s] = fieldcorr_Analysis(ts, field, varargin)
 %       have the same length as ts. Field may be n-dimensional. By default,
 %       fieldcorr assumes that the time series runs parallel to the first dimension.
 %
+% p: A vector containing significance levels to be tested. Each p value 
+%       must be on the interval (0,1).
+%
+% MC: The number of Monte Carlo iterations to perform in the
+%       spatial-interdependence test.
+%
+% noiseType: A flag for the type of noise to use in the Monte Carlo test
+%       'white': White gaussian noise
+%       'red': Lag-1 autocorrelated noise with added white noise
+%
 % q: The rate of false discovery. This is the percent of null hypotheses
 %       that are falsely rejected and attributed as significant. (q = 0.05
 %       is a commonly used value.) q must be on the interval (0,1)
@@ -77,11 +87,72 @@ function[s] = fieldcorr_Analysis(ts, field, varargin)
 % iField: A set of time indices for the field. These must overlap
 %    with the tsIndices. See the assignLagIndices function.
 %
+% lagArgs: A cell containing additional parameters for a lagged field
+%       correlation. See the documentation of the "lagFieldcorr" 'fixedN' 
+%       and 'restrictBounds' flags
+%
 % d: A scalar specifying the dimension of the field on which to perform the
 %       correlation.
 %
 % corrArgs: A cell containing alternative parameters for the "corr"
 %       function, see the "corr" help section for details.
+%
+%
+% ----- Outputs -----
+% 
+% s: a structure containing the following fields
+%   corrmaps: The correlation coefficients at each field point. Separate
+%       lags are along the last dimension.
+%
+%   pmaps: The p-value for each correlation coefficient.
+%
+%   corrSize: The number of points used in the calculation of the
+%       correlation coefficients for each lag.
+%
+%   tsPoints: The points in the time series used for each lag. Each column
+%       records the points for one lag.
+%
+%   fPoints: The points for the field used for each lag. Each column
+%       records the points for one lag.
+%
+%   p: The tested significance levels.
+%    
+%   nPass: The number of p-values exceeding the significance levels for
+%       each lag. Rows are significance levels, and columns are lags.
+%
+%   N: The total number of hypothesis tests for each significance level and
+%       lag. As previously, rows are significance levels, and columns are lags.
+%
+%   nPassG: The number of hypothesis tests globally (all lags), that pass
+%       each significance level.
+%
+%   NG: The global (all lags) number of hypothesis tests for each
+%       significance level.
+%
+%   areSigM: 
+%
+%   nNeededM
+%
+%   areSigS: A logical indicating whether each lagged correlation maintains
+%       significance at each significance level.
+%
+%   nNeededS: The number of passed tests needed to maintain signficance at
+%       each significance level and lag, given spatial interdependence.
+%
+%   iterNPassed: The number of passed tests needed to mainain significance
+%       at each Monte Carlo iteration.
+%
+%   iterTrueConf: The true confidence level of each Monte Carlo iteration.
+%
+%   areSig: 
+%
+%   sigP: The indices of p-values that pass the significance tests
+%
+%   q: The tested false detection rates
+%
+%   fdrSigP: The indices of p-values that pass the false detection rate test
+%
+%   metadata: Metadata for the analysis%   
 %
 %
 % ----- References -----
@@ -95,7 +166,7 @@ function[s] = fieldcorr_Analysis(ts, field, varargin)
 
 
 % Parse Inputs
-[dim, corrArgs, iTS, iField, lagArgs, spatialTest, MC, noiseType, p, ...
+[dim, corrArgs, iTS, iField, lagArgs, spatialTest, MC, noiseType, ...
     convergeFlag, fdrTest, q, fdrType, noLags] = parseInputs(varargin{:});
 
 % Reshape field to 2D
@@ -123,7 +194,7 @@ if noLags
 else
     % Run the lagged field correlation
     [s.corrmaps, s.pmaps, s.corrSize, s.tsPoints, s.fPoints] = ...
-        lagFieldcorr(ts, iTS, field, iField, lagArgs);
+        lagFieldcorr(ts, iTS, field, iField, lagArgs{:}, 'corrArgs', corrArgs);
     
     % Get the global number of passed tests
     [s.nPassG, s.NG] = getNPassN(p, s.pmaps);
@@ -199,7 +270,7 @@ end
 
 % ----- Helper Functions -----
 
-function[dim, corrArgs, iTS, iField, lagArgs, spatialTest, MC, noiseType, p, ...
+function[dim, corrArgs, iTS, iField, lagArgs, spatialTest, MC, noiseType, ...
     convergeFlag, fdrTest, q, fdrType, noLags] = parseInputs(varargin)
 inArgs = varargin;
 
@@ -222,7 +293,7 @@ fdrTest = false;
 q = NaN;
 fdrType = NaN;
 
-noLags = true;
+noLags = false;
 otherLagArg = {};
 
 if ~isempty(inArgs)
@@ -235,7 +306,6 @@ if ~isempty(inArgs)
     isifield = false;
 
     isnoisetype = false;
-    isp = false;
 
     isq = false;
     isfdrtype = false;
@@ -253,10 +323,6 @@ if ~isempty(inArgs)
         if isnoisetype
             noiseType = arg;
             isnoisetype = false;
-            isp = true;
-        elseif isp
-            p = arg;
-            isp = false;
         elseif isq
             q = arg;
             isq = false;
@@ -293,12 +359,12 @@ if ~isempty(inArgs)
                
         % Switch triggers
         elseif k==1 && ~strcmpi(arg, 'noSpatial')
-            if length(inArgs)>= k+2
+            if length(inArgs)>= k+1
                 MC = arg;
                 isnoisetype = true;
                 spatialTest = true;
             else 
-                error('noiseType and p are not specified');
+                error('NoiseType is not specified');
             end
             
         elseif k==1 && strcmpi(arg, 'noSpatial')
@@ -362,12 +428,12 @@ if isempty( [tsLags, fieldLags])
 else
     
     if ~isempty(tsLags)
-        lagArgs(length(lagArgs):length(lagArgs)+1) = {'lagTS', tsLags};
+        lagArgs(end+1:end+2) = {'lagTS', tsLags};
     end
     if ~isempty(fieldLags)
-        lagArgs(length(lagArgs):length(lagArgs)+1) = {'lagF', fieldLags};
+        lagArgs(end+1:end+2) = {'lagF', fieldLags};
     end
-    lagArgs = [lagArgs, otherLagArg, corrArgs];   
+    lagArgs = [lagArgs, otherLagArg];   
 end
 
 end
